@@ -1,0 +1,55 @@
+{
+  "SkyView": {
+    "url": "https://skyview.gsfc.nasa.gov/cgi-bin/images",
+    "method": "GET",
+    "params": {
+      "Position": "85.2479,-2.4583",
+      "Survey": "DSS2 Red",
+      "Pixels": "1000,1000",
+      "Size": 0.5,
+      "Return": "FITS"
+    },
+    "python": "\nimport requests\nresponse = requests.get(\n    'https://skyview.gsfc.nasa.gov/cgi-bin/images',\n    params={\n        'Position': '85.2479,-2.4583',\n        'Survey': 'DSS2 Red',\n        'Pixels': '1000,1000',\n        'Size': 0.5,\n        'Return': 'FITS'\n    }\n)\nfits_data = response.content\n"
+  },
+  "Las Cumbres Observatory": {
+    "url": "https://observe.lco.global/api/requestgroups/",
+    "method": "POST",
+    "authentication": "Token YOUR_API_TOKEN",
+    "body": {
+      "name": "Horsehead Nebula Observation",
+      "proposal": "EDUCATION_PROJECT",
+      "ipp_value": 1.0,
+      "operator": "SINGLE",
+      "observation_type": "NORMAL",
+      "requests": [
+        {
+          "target": {
+            "name": "Horsehead Nebula",
+            "type": "ICRS",
+            "ra": 85.2479,
+            "dec": -2.4583
+          },
+          "configurations": [
+            {
+              "type": "EXPOSE",
+              "instrument_type": "1M0-SCICAM-SINISTRO",
+              "exposure_time": 300,
+              "exposure_count": 3,
+              "filter": "rp"
+            }
+          ],
+          "windows": [
+            {
+              "start": "2025-11-17T00:00:00Z",
+              "end": "2025-11-18T00:00:00Z"
+            }
+          ],
+          "location": {
+            "telescope_class": "1m0"
+          }
+        }
+      ]
+    },
+    "python": "\nimport requests\nheaders = {'Authorization': 'Token YOUR_API_TOKEN'}\nobservation_request = {\n    'name': 'Horsehead Nebula',\n    'proposal': 'YOUR_PROPOSAL_ID',\n    'ipp_value': 1.0,\n    'operator': 'SINGLE',\n    'observation_type': 'NORMAL',\n    'requests': [{\n        'target': {\n            'name': 'Horsehead',\n            'type': 'ICRS',\n            'ra': 85.2479,\n            'dec': -2.4583\n        },\n        'configurations': [{\n            'type': 'EXPOSE',\n            'instrument_type': '1M0-SCICAM-SINISTRO',\n            'exposure_time': 300,\n            'exposure_count': 3,\n            'filter': 'rp'\n        }],\n        'windows': [{\n            'start': '2025-11-17T00:00:00Z',\n            'end': '2025-11-18T00:00:00Z'\n        }],\n        'location': {'telescope_class': '1m0'}\n    }]\n}\nresponse = requests.post(\n    'https://observe.lco.global/api/requestgroups/',\n    headers=headers,\n    json=observation_request\n)\n"
+  }
+}

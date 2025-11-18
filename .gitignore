@@ -1,0 +1,42 @@
+# Astronomical Data Files (large binary files)
+*.fits
+*.fit
+*.fts
+
+# Large image outputs
+*.png
+!AstroInterface.png
+*.jpg
+*.jpeg
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+dist/
+build/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Credentials (extra safety)
+*credentials*
+*secret*
+.env
+config.ini
+
+# Analysis outputs (can be regenerated)
+horsehead_analysis.json
