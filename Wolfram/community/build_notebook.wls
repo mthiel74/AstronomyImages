@@ -10,7 +10,7 @@ hereDir = DirectoryName[If[$ScriptCommandLine =!= {}, $InputFileName,
                            NotebookFileName[]]];
 imgDir  = FileNameJoin[{hereDir, "images"}];
 
-imgWidth = 680;
+imgWidth = 520;
 
 loadImg[name_] := With[
   {p = FileNameJoin[{imgDir, name}]},
@@ -25,9 +25,10 @@ imgCell[name_, caption_String: ""] := Cell[
       Column[{loadImg[name],
               Pane[Style[caption, Italic, FontSize -> 10,
                          FontFamily -> "Helvetica"],
-                   imgWidth, Alignment -> Center]},
+                   imgWidth - 8, Alignment -> Center]},
              Alignment -> Center, Spacings -> 0.6]]]],
   "Output", ShowCellLabel -> False,
+  TextAlignment -> Center,
   CellMargins -> {{0, 0}, {10, 14}}];
 
 (* Two-column cheat-sheet grid *)
@@ -332,6 +333,39 @@ the dust is ",
    ", so the nebula flips from dark feature to bright feature as we \
 slide from 656 nm to 3.4 \[Mu]m."}], "Text"],
 
+ Cell[TextData[{"The cell below loads four bands from the bundled \
+FITS files and builds the 2\[Times]2 panel in one Grid. Every panel \
+is a single ",
+   StyleBox["ArrayPlot", "Input"],
+   " with a per-band colour map and percentile-clipped contrast."}],
+      "Text"],
+
+ Cell[BoxData["\
+waveBands = {\n\
+  {\"DSS2 Red (656 nm)\",    \"horsehead_DSS2_Red.fits\",  \"GrayTones\"},\n\
+  {\"2MASS J (1.25 \[Mu]m)\",    \"horsehead_2MASS_J.fits\",   \"GrayTones\"},\n\
+  {\"2MASS K (2.17 \[Mu]m)\",    \"horsehead_2MASS_K.fits\",   \"SunsetColors\"},\n\
+  {\"WISE W1 (3.4 \[Mu]m)\",     \"horsehead_WISE_3p4.fits\",  \"SunsetColors\"}};\n\
+\n\
+wavePanels = Table[\n\
+  With[{d = loadFITSArray[FileNameJoin[\n\
+              {NotebookDirectory[], \"images\", b[[2]]}]]},\n\
+    Labeled[\n\
+      ArrayPlot[Reverse[d],\n\
+        ColorFunction -> ColorData[b[[3]]],\n\
+        PlotRange -> Quantile[Flatten[d], {0.01, 0.995}],\n\
+        Frame -> False, ImageSize -> 250],\n\
+      Style[b[[1]], Bold, 12]]],\n\
+  {b, waveBands}];\n\
+\n\
+Labeled[Grid[Partition[wavePanels, 2], Spacings -> 1],\n\
+  Style[\"Horsehead Nebula: one object, four wavelengths\",\n\
+        Bold, 14], Top]"], "Input"],
+
+ Cell[TextData[{"The pre-rendered PNG below is the exact output of \
+that cell, embedded so readers on GitHub or the Community post see \
+the figure without evaluating anything."}], "Text"],
+
  imgCell["horsehead_multiwavelength.png",
   "Figure 2. The Horsehead Nebula in four bands spanning a factor of \
 ~5000 in wavelength. DSS2 Red (656 nm) shows the classic silhouette \
@@ -521,6 +555,57 @@ Every object has its own challenge \[LongDash] M31 is so large it \
 needs 3\[Degree] on a side, M1 is compact at ~5\[CapitalAHat]', \
 Pleiades is dominated by a handful of bright B-type stars that \
 saturate the central pixels on the original plates."}], "Text"],
+
+ Cell[TextData[{"The cell below holds the gallery as a catalog, \
+loads each bundled FITS, and arranges the six panels in a 3\[Times]2 \
+Grid. Each target gets its own ColorFunction \[LongDash] \
+",
+   StyleBox["Rainbow", "Input"], " for M42, ",
+   StyleBox["DeepSeaColors", "Input"], " for M45, and so on \
+\[LongDash] so the gallery doubles as a palette sampler."}], "Text"],
+
+ Cell[BoxData["\
+messierGallery = <|\n\
+  \"M42 (Orion Nebula)\" -> <|\"file\" -> \"M42_Orion_Nebula_DSS2_Red.fits\",\n\
+                             \"cmap\" -> \"Rainbow\",\n\
+                             \"caption\" -> \"Stellar nursery, 1344 ly away\"|>,\n\
+  \"M45 (Pleiades)\"     -> <|\"file\" -> \"M45_Pleiades_DSS2_Red.fits\",\n\
+                             \"cmap\" -> \"DeepSeaColors\",\n\
+                             \"caption\" -> \"Open cluster, ~110 Myr old\"|>,\n\
+  \"M31 (Andromeda)\"    -> <|\"file\" -> \"M31_Andromeda_DSS2_Red.fits\",\n\
+                             \"cmap\" -> \"SunsetColors\",\n\
+                             \"caption\" -> \"Nearest spiral galaxy, 2.5 Mly\"|>,\n\
+  \"M16 (Eagle Nebula)\" -> <|\"file\" -> \"M16_Eagle_Nebula_DSS2_Red.fits\",\n\
+                             \"cmap\" -> \"TemperatureMap\",\n\
+                             \"caption\" -> \"Pillars of Creation, HST target\"|>,\n\
+  \"M51 (Whirlpool)\"    -> <|\"file\" -> \"M51_Whirlpool_DSS2_Red.fits\",\n\
+                             \"cmap\" -> \"AuroraColors\",\n\
+                             \"caption\" -> \"Grand-design spiral, 23 Mly\"|>,\n\
+  \"M1 (Crab Nebula)\"   -> <|\"file\" -> \"M1_Crab_Nebula_DSS2_Red.fits\",\n\
+                             \"cmap\" -> \"SolarColors\",\n\
+                             \"caption\" -> \"Supernova remnant of 1054 AD\"|>|>;\n\
+\n\
+galleryPanels = Table[\n\
+  With[{meta = messierGallery[k],\n\
+        d = loadFITSArray[FileNameJoin[\n\
+              {NotebookDirectory[], \"images\", messierGallery[k][\"file\"]}]]},\n\
+    Labeled[\n\
+      ArrayPlot[Reverse[d],\n\
+        ColorFunction -> ColorData[meta[\"cmap\"]],\n\
+        PlotRange -> Quantile[Flatten[d], {0.01, 0.995}],\n\
+        Frame -> False, ImageSize -> 220],\n\
+      Column[{Style[k, Bold, 11],\n\
+              Style[meta[\"caption\"], Italic, FontSize -> 9, Gray]},\n\
+             Alignment -> Center]]],\n\
+  {k, Keys[messierGallery]}];\n\
+\n\
+Grid[Partition[galleryPanels, 3], Spacings -> {1, 1.5}]"], "Input"],
+
+ Cell[TextData[{"The PNG below is the same computation baked to \
+disk by ",
+   StyleBox["make_assets.wls", "Input"],
+   " so readers of the static PDF / GitHub render see the figure \
+without having to evaluate anything."}], "Text"],
 
  imgCell["messier_gallery.png",
   "Figure 5. Six famous Messier targets fetched from NASA SkyView, \
