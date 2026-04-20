@@ -2,10 +2,13 @@
 *.fits
 *.fit
 *.fts
+# Exception: community-post assets ship with the notebook
+!Wolfram/community/images/*.fits
 
 # Large image outputs
 *.png
 !AstroInterface.png
+!Wolfram/community/images/*.png
 *.jpg
 *.jpeg
 

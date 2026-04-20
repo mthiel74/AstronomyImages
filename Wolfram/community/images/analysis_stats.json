@@ -1,0 +1,16 @@
+{
+	"source":"real",
+	"shape":[
+		600,
+		600
+	],
+	"min":4.228e3,
+	"max":2.3344e4,
+	"mean":9.229689891666667e3,
+	"median":8.701e3,
+	"threshold_p30":7.467e3,
+	"background_mean":1.039059658815778e4,
+	"dark_mean":6.5228414774094435e3,
+	"estimated_optical_depth":0.46559113244274686,
+	"estimated_extinction_mag":0.5056319698328231
+}
