@@ -808,7 +808,7 @@ skyLandmarks = <|\n\
   \"M51 Whirlpool\" -> {202.47, 47.20},\n\
   \"M1 Crab\"       -> { 83.63, 22.01}|>;\n\
 \n\
-skyMap[selRA_, selDec_] := Graphics[{\n\
+skyMap[selRA_, selDec_, fov_] := Graphics[{\n\
     (* Milky Way approximation *)\n\
     {Purple, Opacity[0.15], Thickness[0.03],\n\
       Line[{#, -29 + 60 Sin[(# - 266) Degree]} & /@ Subdivide[0., 360., 99]]},\n\
@@ -822,10 +822,28 @@ skyMap[selRA_, selDec_] := Graphics[{\n\
         {Red, PointSize[0.012], Point[p],\n\
          Text[Style[n, 9, Darker[Red]], p, {0, -1.5}]}],\n\
       skyLandmarks],\n\
-    (* Selection *)\n\
+    (* Selection \[LongDash] square footprint of side fov\[Degree] *)\n\
     If[NumericQ[selRA],\n\
       {Green, PointSize[0.02], Point[{selRA, selDec}],\n\
-       Thickness[0.004], Circle[{selRA, selDec}, 6]}, {}]\n\
+       (* True-size FOV square (vanishingly small for FOV < ~1\[Degree]) *)\n\
+       Thickness[0.003],\n\
+       Line[{{selRA - fov/2, selDec - fov/2},\n\
+             {selRA + fov/2, selDec - fov/2},\n\
+             {selRA + fov/2, selDec + fov/2},\n\
+             {selRA - fov/2, selDec + fov/2},\n\
+             {selRA - fov/2, selDec - fov/2}}],\n\
+       (* Dashed \"minimum visible\" outline so slider feedback is \n\
+          always obvious, even for sub-degree FOV *)\n\
+       Dashed, Opacity[0.6],\n\
+       With[{r = Max[fov/2, 4]},\n\
+        Line[{{selRA - r, selDec - r}, {selRA + r, selDec - r},\n\
+              {selRA + r, selDec + r}, {selRA - r, selDec + r},\n\
+              {selRA - r, selDec - r}}]],\n\
+       (* Live FOV label next to the cursor *)\n\
+       Opacity[1], Black,\n\
+       Text[Style[\"FOV=\" <> ToString[NumberForm[fov, {3, 2}]] <> \"\[Degree]\",\n\
+                  Bold, 10, Background -> RGBColor[1, 1, 1, 0.7]],\n\
+            {selRA, selDec + Max[fov/2, 4] + 4}]}, {}]\n\
   }, PlotRange -> {{360, 0}, {-90, 90}},\n\
      Frame -> True,\n\
      FrameLabel -> {\"Right Ascension (\[Degree])\", \"Declination (\[Degree])\"},\n\
@@ -833,43 +851,110 @@ skyMap[selRA_, selDec_] := Graphics[{\n\
      GridLinesStyle -> Directive[Gray, Opacity[0.3], Dashed],\n\
      ImageSize -> 680];\n\
 \n\
+(* Helper: fetch + decode one band, return {bytes, array} or $Failed *)\n\
+fetchBand[ra_, dec_, surv_, f_, px_] := Module[{b, tmp, a},\n\
+  b = skyViewBytes[ra, dec, surv, f, px];\n\
+  If[!ByteArrayQ[b] || Length[b] < 8000, Return[$Failed]];\n\
+  tmp = CreateFile[]; BinaryWrite[tmp, b]; Close[tmp];\n\
+  a = loadFITSArray[tmp]; DeleteFile[tmp];\n\
+  If[MatrixQ[a, NumericQ], {b, a}, $Failed]];\n\
+\n\
+bandCmap = <|\"DSS2 Red\" -> \"GrayTones\", \"2MASS-J\" -> \"GrayTones\",\n\
+             \"2MASS-K\" -> \"SunsetColors\", \"WISE 3.4\" -> \"SunsetColors\"|>;\n\
+\n\
+(* Build the display panel \[LongDash] shared by Dynamic render + Save PNG *)\n\
+buildResultPanel[bd_Association, ra_, dec_, f_] :=\n\
+  If[Length[bd] == 0,\n\
+    Framed[Style[\"(no image downloaded yet)\", 12, Gray],\n\
+      ImageSize -> {540, 300}, Alignment -> Center],\n\
+    Module[{panels},\n\
+      panels = KeyValueMap[\n\
+        Function[{b, d},\n\
+          With[{lohi = Quantile[Flatten[d], {0.01, 0.995}]},\n\
+            Labeled[\n\
+              ArrayPlot[Reverse[d],\n\
+                ColorFunction -> ColorData[bandCmap[b]],\n\
+                PlotRange -> lohi, Frame -> False,\n\
+                ImageSize -> If[Length[bd] == 1, 540, 260]],\n\
+              Style[b, Bold, 11]]]], bd];\n\
+      If[Length[bd] == 1, First[panels],\n\
+        Labeled[Grid[Partition[panels, 2, 2, 1, \"\"], Spacings -> 1],\n\
+          Style[\"RA=\" <> ToString[NumberForm[ra, {5, 2}]] <>\n\
+                \"\[Degree], Dec=\" <> ToString[NumberForm[dec, {5, 2}]] <>\n\
+                \"\[Degree], FOV=\" <> ToString[NumberForm[f, {3, 2}]] <>\n\
+                \"\[Degree]\", Bold, 12], Top]]];\n\
+\n\
 DynamicModule[{selRA = 85.25, selDec = -2.46, fov = 0.5,\n\
-    survey = \"DSS2 Red\", cmap = \"GrayTones\",\n\
-    data = None, status = \"Click the map to select coordinates.\"},\n\
+    survey = \"DSS2 Red\", allBands = False,\n\
+    bandData = <||>, bandBytes = <||>,\n\
+    status = \"Click the map to select coordinates.\"},\n\
   Column[{\n\
-    EventHandler[Dynamic[skyMap[selRA, selDec]],\n\
+    EventHandler[Dynamic[skyMap[selRA, selDec, fov]],\n\
       {\"MouseClicked\" :> With[{p = MousePosition[\"Graphics\"]},\n\
         If[Head[p] === List && Length[p] == 2, {selRA, selDec} = p]]}],\n\
     Row[{\"RA: \",  Dynamic[NumberForm[selRA, {6, 3}]], \"\[Degree]   \",\n\
          \"Dec: \", Dynamic[NumberForm[selDec, {6, 3}]], \"\[Degree]   \",\n\
          \"FOV: \", Slider[Dynamic[fov], {0.05, 3, 0.05}],\n\
-         \" \", Dynamic[NumberForm[fov, {3, 2}]], \"\[Degree]   \",\n\
-         \"Survey: \", PopupMenu[Dynamic[survey],\n\
+         \" \", Dynamic[NumberForm[fov, {3, 2}]], \"\[Degree]\"}],\n\
+    Row[{\"Survey: \", PopupMenu[Dynamic[survey],\n\
            {\"DSS2 Red\", \"2MASS-J\", \"2MASS-K\", \"WISE 3.4\"}], \"   \",\n\
-         Button[Style[\"Download\", Bold, White],\n\
-           status = \"Contacting SkyView\[Ellipsis]\";\n\
-           Module[{bytes = skyViewBytes[selRA, selDec, survey, fov, 600], tmp, arr},\n\
-             If[!ByteArrayQ[bytes] || Length[bytes] < 8000,\n\
-               data = None;\n\
-               status = \"\[Times] SkyView returned no data at that point\",\n\
-               tmp = CreateFile[]; BinaryWrite[tmp, bytes]; Close[tmp];\n\
-               arr = loadFITSArray[tmp]; DeleteFile[tmp];\n\
-               If[MatrixQ[arr, NumericQ], data = arr;\n\
-                 status = \"\[Checkmark] \" <> ToString[Dimensions[arr]] <>\n\
-                          \" from \" <> survey,\n\
-                 data = None; status = \"\[Times] FITS decode failed\"]]],\n\
-           Background -> RGBColor[0.12, 0.45, 0.80], ImageSize -> 120]}],\n\
+         Checkbox[Dynamic[allBands]], \" All spectral bands\"}],\n\
+    Row[{\n\
+      Button[Style[\"Download\", Bold, White],\n\
+        bandData = <||>; bandBytes = <||>;\n\
+        If[allBands,\n\
+          Module[{bands = {\"DSS2 Red\", \"2MASS-J\", \"2MASS-K\", \"WISE 3.4\"},\n\
+                  done = 0, r},\n\
+            Do[status = \"Downloading \" <> b <> \" (\" <>\n\
+                 ToString[done + 1] <> \"/\" <> ToString[Length[bands]] <> \")\[Ellipsis]\";\n\
+               r = fetchBand[selRA, selDec, b, fov, 600];\n\
+               If[r =!= $Failed,\n\
+                 bandBytes[b] = r[[1]]; bandData[b] = r[[2]]];\n\
+               done++, {b, bands}];\n\
+            status = \"\[Checkmark] \" <> ToString[Length[bandData]] <> \"/\" <>\n\
+                     ToString[Length[bands]] <> \" bands downloaded\"],\n\
+          status = \"Contacting SkyView\[Ellipsis]\";\n\
+          Module[{r = fetchBand[selRA, selDec, survey, fov, 600]},\n\
+            If[r === $Failed,\n\
+              status = \"\[Times] SkyView returned no data\",\n\
+              bandBytes[survey] = r[[1]]; bandData[survey] = r[[2]];\n\
+              status = \"\[Checkmark] \" <> ToString[Dimensions[r[[2]]]] <>\n\
+                       \" from \" <> survey]]],\n\
+        Background -> RGBColor[0.12, 0.45, 0.80], ImageSize -> 110],\n\
+      Spacer[8],\n\
+      Button[\"Save FITS\",\n\
+        If[Length[bandBytes] == 0,\n\
+          status = \"\[Times] Nothing to save \[LongDash] press Download first\",\n\
+          Module[{p = SystemDialogInput[\"FileSave\", \"cutout.fits\"]},\n\
+            If[StringQ[p],\n\
+              If[Length[bandBytes] == 1,\n\
+                BinaryWrite[p, First[Values[bandBytes]]]; Close[p];\n\
+                status = \"Saved \" <> p,\n\
+                Module[{dir = DirectoryName[p], base = FileBaseName[p],\n\
+                        written = 0},\n\
+                  KeyValueMap[Function[{b, bytes},\n\
+                    Module[{q = FileNameJoin[{dir, base <> \"_\" <>\n\
+                            StringReplace[b, {\" \" -> \"_\", \"-\" -> \"_\"}] <>\n\
+                            \".fits\"}]},\n\
+                      BinaryWrite[q, bytes]; Close[q]; written++]],\n\
+                    bandBytes];\n\
+                  status = \"Saved \" <> ToString[written] <>\n\
+                           \" FITS files to \" <> dir]]]]],\n\
+        ImageSize -> 100],\n\
+      Spacer[4],\n\
+      Button[\"Save PNG\",\n\
+        If[Length[bandData] == 0,\n\
+          status = \"\[Times] Nothing to save \[LongDash] press Download first\",\n\
+          Module[{p = SystemDialogInput[\"FileSave\", \"cutout.png\"]},\n\
+            If[StringQ[p],\n\
+              Export[p, Rasterize[\n\
+                buildResultPanel[bandData, selRA, selDec, fov],\n\
+                ImageResolution -> 150]];\n\
+              status = \"Saved \" <> p]]],\n\
+        ImageSize -> 100]\n\
+    }],\n\
     Style[Dynamic[status], Italic, FontSize -> 11],\n\
-    Dynamic[If[data === None,\n\
-      Framed[Style[\"(no image downloaded yet)\", 12, Gray],\n\
-        ImageSize -> {540, 300}, Alignment -> Center],\n\
-      With[{lohi = Quantile[Flatten[data], {0.01, 0.995}]},\n\
-        ArrayPlot[Reverse[data], ColorFunction -> ColorData[cmap],\n\
-          PlotRange -> lohi, Frame -> True,\n\
-          PlotLabel -> Style[survey <> \" @ RA=\" <>\n\
-            ToString[NumberForm[selRA, {5, 2}]] <> \"\[Degree], Dec=\" <>\n\
-            ToString[NumberForm[selDec, {5, 2}]] <> \"\[Degree]\", Bold, 11],\n\
-          ImageSize -> 540]]]]\n\
+    Dynamic[buildResultPanel[bandData, selRA, selDec, fov]]\n\
   }, Spacings -> 1]]"], "Input"],
 
  imgCell["click_map_preview.png",

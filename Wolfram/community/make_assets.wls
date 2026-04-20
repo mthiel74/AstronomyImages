@@ -407,7 +407,7 @@ skyLandmarksPreview = <|
   "M51 Whirlpool" -> {202.47, 47.20},
   "M1 Crab"       -> {83.63,  22.01}|>;
 
-skyMapPreview[selRA_, selDec_] := Graphics[{
+skyMapPreview[selRA_, selDec_, fov_] := Graphics[{
     {Purple, Opacity[0.15], Thickness[0.03],
       Line[{#, -29 + 60 Sin[(# - 266) Degree]} & /@ Subdivide[0., 360., 99]]},
     {Blue, Opacity[0.4], Line[{{0, 0}, {360, 0}}]},
@@ -419,7 +419,21 @@ skyMapPreview[selRA_, selDec_] := Graphics[{
          Text[Style[n, 9, Darker[Red]], p, {0, -1.5}]}],
       skyLandmarksPreview],
     {Green, PointSize[0.02], Point[{selRA, selDec}],
-     Thickness[0.004], Circle[{selRA, selDec}, 6]}},
+     Thickness[0.003],
+     Line[{{selRA - fov/2, selDec - fov/2},
+           {selRA + fov/2, selDec - fov/2},
+           {selRA + fov/2, selDec + fov/2},
+           {selRA - fov/2, selDec + fov/2},
+           {selRA - fov/2, selDec - fov/2}}],
+     Dashed, Opacity[0.6],
+     With[{r = Max[fov/2, 4]},
+      Line[{{selRA - r, selDec - r}, {selRA + r, selDec - r},
+            {selRA + r, selDec + r}, {selRA - r, selDec + r},
+            {selRA - r, selDec - r}}]],
+     Opacity[1], Black,
+     Text[Style["FOV=" <> ToString[NumberForm[fov, {3, 2}]] <> "\[Degree]",
+                Bold, 10, Background -> RGBColor[1, 1, 1, 0.7]],
+          {selRA, selDec + Max[fov/2, 4] + 4}]}},
   PlotRange -> {{360, 0}, {-90, 90}},
   Frame -> True,
   FrameLabel -> {"Right Ascension (\[Degree])", "Declination (\[Degree])"},
@@ -433,7 +447,7 @@ If[guiPreviewFile =!= None,
     gd = loadFITSData[
       FileNameJoin[{imgDir, "horsehead_DSS2_Red.fits"}]];
     {gLo, gHi} = percClip[gd];
-    map = skyMapPreview[85.25, -2.46];
+    map = skyMapPreview[85.25, -2.46, 0.5];
     plot = ArrayPlot[Reverse[gd],
       ColorFunction -> ColorData["GrayTones"],
       PlotRange -> {gLo, gHi},
@@ -447,10 +461,16 @@ If[guiPreviewFile =!= None,
     preview = Column[{
       map,
       Row[{"RA: 85.250\[Degree]   Dec: \[Minus]2.460\[Degree]   \
-FOV: 0.50\[Degree]   Survey: ", PopupMenu["DSS2 Red",
-        {"DSS2 Red", "2MASS-J", "2MASS-K", "WISE 3.4"}], "   ",
+FOV: ", Slider[0.5, {0.05, 3, 0.05}], " 0.50\[Degree]"}],
+      Row[{"Survey: ", PopupMenu["DSS2 Red",
+           {"DSS2 Red", "2MASS-J", "2MASS-K", "WISE 3.4"}],
+           "   ", Checkbox[False], " All spectral bands"}],
+      Row[{
         Button[Style["Download", Bold, White], Null,
-          Background -> RGBColor[0.12, 0.45, 0.80], ImageSize -> 120]}],
+          Background -> RGBColor[0.12, 0.45, 0.80], ImageSize -> 110],
+        Spacer[8],
+        Button["Save FITS", Null, ImageSize -> 100], Spacer[4],
+        Button["Save PNG",  Null, ImageSize -> 100]}],
       status,
       plot}, Spacings -> 1];
     Export[FileNameJoin[{imgDir, "click_map_preview.png"}],
