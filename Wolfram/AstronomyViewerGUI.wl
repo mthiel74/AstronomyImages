@@ -46,17 +46,22 @@ skyViewQuery[ra_, dec_, survey_, pixels_, fov_] := Module[
     "Return"   -> "FITS",
     "Scaling"  -> "Linear"
   |>;
-  TimeConstrained[URLExecute[url <> "?" <> URLQueryEncode[params], "ByteArray"], 60, $Failed]
+  TimeConstrained[
+    Module[{resp},
+      resp = URLRead[HTTPRequest[url <> "?" <> URLQueryEncode[params]]];
+      If[resp === $Failed || resp["StatusCode"] =!= 200, $Failed,
+        resp["BodyByteArray"]]
+    ],
+    60, $Failed]
 ];
 
 (* Render the numeric image data with a given ColorFunction name. *)
 renderImage[data_?MatrixQ, cmapName_] := Module[
-  {flat, vmin, vmax, scaled, cf},
+  {flat, vmin, vmax, scaled},
   flat = DeleteCases[Flatten[data], _?(Not@*NumericQ)];
   {vmin, vmax} = Quantile[flat, {0.01, 0.99}];
   scaled = Clip[(data - vmin) / (vmax - vmin + 10.^-12), {0, 1}];
-  cf = ColorData[cmapName];
-  Image[Reverse[scaled], "Real", ColorFunction -> cf]
+  Colorize[Image[Reverse[scaled], "Real"], ColorFunction -> ColorData[cmapName]]
 ];
 
 (* Plot the image with a colorbar via ArrayPlot. *)
@@ -132,7 +137,11 @@ launchAstronomyViewer[] := DynamicModule[
               tmp = CreateFile[];
               BinaryWrite[tmp, bytes]; Close[tmp];
               data = Quiet @ Import[tmp, {"FITS", "Data"}];
-              If[ Head[data] === List && Depth[data] > 2, data = First[data]];
+              data = Which[
+                AssociationQ[data],                   First[Values[data]],
+                ListQ[data] && Depth[data] >= 4,      First[data],
+                True,                                 data
+              ];
               If[ MatrixQ[data, NumericQ],
                 currentData = data;
                 info = "Survey: " <> survey <>

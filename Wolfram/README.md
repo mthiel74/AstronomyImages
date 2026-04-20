@@ -39,7 +39,7 @@ InteractiveSkyMap`launchInteractiveSkyMap[]
 
 | Python | Wolfram Language |
 |---|---|
-| `requests.get(url, params=..)` | `URLExecute[url <> "?" <> URLQueryEncode[params], "ByteArray"]` |
+| `requests.get(url, params=..).content` | `URLRead[HTTPRequest[url <> "?" <> URLQueryEncode[params]]]["BodyByteArray"]` |
 | `astropy.io.fits.open(...)` | `Import[file, {"FITS", "Data"}]` (+ `"Metadata"`) |
 | `numpy.linspace(a, b, n)` | `Subdivide[a, b, n-1]` |
 | `numpy.meshgrid(x, y)` | `ConstantArray[x, Length[y]]` / `Transpose[ConstantArray[y, Length[x]]]` |

@@ -77,7 +77,13 @@ skyViewQuery[ra_, dec_, survey_, pixels_, fov_] := Module[
     "Return"   -> "FITS",
     "Scaling"  -> "Linear"
   |>;
-  TimeConstrained[URLExecute[url <> "?" <> URLQueryEncode[params], "ByteArray"], 60, $Failed]
+  TimeConstrained[
+    Module[{resp},
+      resp = URLRead[HTTPRequest[url <> "?" <> URLQueryEncode[params]]];
+      If[resp === $Failed || resp["StatusCode"] =!= 200, $Failed,
+        resp["BodyByteArray"]]
+    ],
+    60, $Failed]
 ];
 
 (* Build the static all-sky map graphics, with an optional "Selected" mark. *)
@@ -212,7 +218,11 @@ launchInteractiveSkyMap[] := DynamicModule[
               tmp = CreateFile[];
               BinaryWrite[tmp, bytes]; Close[tmp];
               data = Quiet @ Import[tmp, {"FITS", "Data"}];
-              If[ Head[data] === List && Depth[data] > 2, data = First[data] ];
+              data = Which[
+                AssociationQ[data],                   First[Values[data]],
+                ListQ[data] && Depth[data] >= 4,      First[data],
+                True,                                 data
+              ];
               If[ MatrixQ[data, NumericQ],
                 currentData = data;
                 info = "Survey: " <> survey <> " | FOV: " <> fov <>

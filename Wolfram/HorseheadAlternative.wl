@@ -180,7 +180,7 @@ horseheadAlternativeMain[outDir_String:"."] := Module[
   Print[StringJoin[ConstantArray["=", 70]]];
 
   If[ Head[sdss] =!= Image && Head[dss] =!= Image,
-    Print["\n\[Warning] Network restrictions prevented both queries."];
+    Print["\n\[WarningSign] Network restrictions prevented both queries."];
     Print["The code structure is correct - would work with proper network access."];
     Print["\nAlternative: Download FITS files manually from:"];
     Print["  - https://skyview.gsfc.nasa.gov/current/cgi/titlepage.pl"];

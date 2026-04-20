@@ -11,7 +11,7 @@
 
 BeginPackage["HorseheadSkyView`"];
 
-queryskyView::usage =
+querySkyView::usage =
   "querySkyView[ra, dec, opts] queries NASA SkyView for a FITS cutout at the given \
 equatorial coordinates. Options: \"Survey\" (\"DSS2 Red\"), \"Pixels\" (800), \"FOV\" (0.5).";
 
@@ -63,7 +63,11 @@ querySkyView[ra_?NumericQ, dec_?NumericQ, OptionsPattern[]] := Module[
         pixels, "x", pixels, " pixels"];
 
   bytes = TimeConstrained[
-    URLExecute[url, "ByteArray"],
+    Module[{resp},
+      resp = URLRead[HTTPRequest[url]];
+      If[resp === $Failed || resp["StatusCode"] =!= 200, $Failed,
+        resp["BodyByteArray"]]
+    ],
     timeout,
     $Failed
   ];
@@ -85,7 +89,11 @@ saveFITS[bytes_ByteArray, filename_String] := (
 displayFITSImage[fitsFile_String, title_String:"Astronomical Image"] := Module[
   {data, meta, dims, vmin, vmax, scaled, img},
   data = Quiet @ Import[fitsFile, {"FITS", "Data"}];
-  If[ Head[data] === List && Depth[data] > 2, data = First[data] ];
+  data = Which[
+    AssociationQ[data],                           First[Values[data]],
+    ListQ[data] && Depth[data] >= 4,              First[data],
+    True,                                         data
+  ];
   meta = Quiet @ Import[fitsFile, "Metadata"];
 
   If[ !MatrixQ[data, NumericQ],
@@ -101,10 +109,16 @@ displayFITSImage[fitsFile_String, title_String:"Astronomical Image"] := Module[
   Print["Mean value: ", ScientificForm[N@Mean[DeleteCases[Flatten[data], _?(Not@*NumericQ)]]]];
 
   {vmin, vmax} = Quantile[DeleteCases[Flatten[data], _?(Not@*NumericQ)], {0.01, 0.995}];
-  scaled = Clip[(data - vmin) / (vmax - vmin + 10.^-12), {0, 1}];
-  img = Image[Reverse[scaled], "Real", ColorFunction -> GrayLevel];
+  img = ArrayPlot[Reverse[data],
+    ColorFunction -> ColorData["GrayTones"],
+    PlotRange -> {vmin, vmax},
+    Frame -> True,
+    FrameLabel -> {"X (pixels)", "Y (pixels)"},
+    PlotLabel -> Style[title, Bold, 14],
+    PlotLegends -> Automatic,
+    ImageSize -> 640];
 
-  Labeled[img, Style[title, Bold, 14]]
+  img
 ];
 
 downloadAndPlot[ra_, dec_, survey_, description_, fov_, pixels_, outDir_] := Module[
