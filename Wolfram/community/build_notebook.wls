@@ -882,7 +882,7 @@ buildResultPanel[bd_Association, ra_, dec_, f_] :=\n\
           Style[\"RA=\" <> ToString[NumberForm[ra, {5, 2}]] <>\n\
                 \"\[Degree], Dec=\" <> ToString[NumberForm[dec, {5, 2}]] <>\n\
                 \"\[Degree], FOV=\" <> ToString[NumberForm[f, {3, 2}]] <>\n\
-                \"\[Degree]\", Bold, 12], Top]]];\n\
+                \"\[Degree]\", Bold, 12], Top]]]];\n\
 \n\
 DynamicModule[{selRA = 85.25, selDec = -2.46, fov = 0.5,\n\
     survey = \"DSS2 Red\", allBands = False,\n\
