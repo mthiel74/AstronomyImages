@@ -390,4 +390,71 @@ If[guiPreviewFile =!= None,
     Print["  wrote gui_preview.png"]],
   Print["  ! no cutout available for GUI preview"]];
 
+(* =================================================================
+   7. Click-map preview \[LongDash] static shot of the \[Section]6.3
+      click-anywhere sky map + the cutout that would result from
+      a click near the Horsehead.
+   ================================================================= *)
+
+Print["---- Click-map preview"];
+
+skyLandmarksPreview = <|
+  "Horsehead"     -> {85.25,  -2.46},
+  "M42 Orion"     -> {83.82,  -5.39},
+  "M45 Pleiades"  -> {56.87,  24.11},
+  "M31 Andromeda" -> {10.68,  41.27},
+  "M16 Eagle"     -> {274.70, -13.81},
+  "M51 Whirlpool" -> {202.47, 47.20},
+  "M1 Crab"       -> {83.63,  22.01}|>;
+
+skyMapPreview[selRA_, selDec_] := Graphics[{
+    {Purple, Opacity[0.15], Thickness[0.03],
+      Line[{#, -29 + 60 Sin[(# - 266) Degree]} & /@ Subdivide[0., 360., 99]]},
+    {Blue, Opacity[0.4], Line[{{0, 0}, {360, 0}}]},
+    {Orange, Opacity[0.4], Dashed,
+      Line[{#, 23.4 Sin[# Degree]} & /@ Subdivide[0., 360., 99]]},
+    KeyValueMap[
+      Function[{n, p},
+        {Red, PointSize[0.012], Point[p],
+         Text[Style[n, 9, Darker[Red]], p, {0, -1.5}]}],
+      skyLandmarksPreview],
+    {Green, PointSize[0.02], Point[{selRA, selDec}],
+     Thickness[0.004], Circle[{selRA, selDec}, 6]}},
+  PlotRange -> {{360, 0}, {-90, 90}},
+  Frame -> True,
+  FrameLabel -> {"Right Ascension (\[Degree])", "Declination (\[Degree])"},
+  AspectRatio -> 1/2,
+  GridLines -> Automatic,
+  GridLinesStyle -> Directive[Gray, Opacity[0.3], Dashed],
+  ImageSize -> 680];
+
+If[guiPreviewFile =!= None,
+  Module[{gd, gLo, gHi, map, plot, status, preview},
+    gd = loadFITSData[
+      FileNameJoin[{imgDir, "horsehead_DSS2_Red.fits"}]];
+    {gLo, gHi} = percClip[gd];
+    map = skyMapPreview[85.25, -2.46];
+    plot = ArrayPlot[Reverse[gd],
+      ColorFunction -> ColorData["GrayTones"],
+      PlotRange -> {gLo, gHi},
+      Frame -> True,
+      PlotLabel -> Style[
+        "DSS2 Red @ RA=85.25\[Degree], Dec=\[Minus]2.46\[Degree]",
+        Bold, 11],
+      ImageSize -> 540];
+    status = Style[
+      "\[Checkmark] {600, 600} image from DSS2 Red", Italic, 11];
+    preview = Column[{
+      map,
+      Row[{"RA: 85.250\[Degree]   Dec: \[Minus]2.460\[Degree]   \
+FOV: 0.50\[Degree]   Survey: ", PopupMenu["DSS2 Red",
+        {"DSS2 Red", "2MASS-J", "2MASS-K", "WISE 3.4"}], "   ",
+        Button[Style["Download", Bold, White], Null,
+          Background -> RGBColor[0.12, 0.45, 0.80], ImageSize -> 120]}],
+      status,
+      plot}, Spacings -> 1];
+    Export[FileNameJoin[{imgDir, "click_map_preview.png"}],
+      Rasterize[preview, ImageResolution -> 140]];
+    Print["  wrote click_map_preview.png"]]];
+
 Print["\nAll done."];

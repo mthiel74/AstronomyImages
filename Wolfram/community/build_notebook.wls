@@ -782,14 +782,117 @@ may not cover this coordinate).\"; data = None,\n\
             ImageSize -> 540]]]]\n\
   }]]"], "Input"],
 
- Cell[TextData[{"The full all-sky clickable viewer lives in ",
-   StyleBox["Wolfram/InteractiveSkyMap.wl", "Input"],
-   ". Load it in a notebook and evaluate ",
-   StyleBox["InteractiveSkyMap`launchInteractiveSkyMap[]", "Input"],
-   " for a clickable Mercator with constellation overlays and the \
-same downloader wired in."}], "Text"],
+ Cell["6.3 Click-anywhere sky map", "Subsection"],
 
- (* ---- Section 9: simulated ---- *)
+ Cell[TextData[{"Clicking a Wolfram ",
+   StyleBox["Graphics", "Input"],
+   " object and getting the coordinates out is what ",
+   StyleBox["EventHandler", "Input"],
+   " + ",
+   StyleBox["MousePosition[\"Graphics\"]", "Input"],
+   " are for. Wrap an all-sky Mercator in that handler, stash the \
+click in ",
+   StyleBox["{selRA, selDec}", "Input"],
+   ", and pipe those straight into ",
+   StyleBox["skyViewBytes", "Input"],
+   " when the Download button is pressed. The cell below is about \
+forty lines end-to-end."}], "Text"],
+
+ Cell[BoxData["\
+skyLandmarks = <|\n\
+  \"Horsehead\"     -> {85.25,  -2.46},\n\
+  \"M42 Orion\"     -> {83.82,  -5.39},\n\
+  \"M45 Pleiades\"  -> {56.87,  24.11},\n\
+  \"M31 Andromeda\" -> {10.68,  41.27},\n\
+  \"M16 Eagle\"     -> {274.70, -13.81},\n\
+  \"M51 Whirlpool\" -> {202.47, 47.20},\n\
+  \"M1 Crab\"       -> { 83.63, 22.01}|>;\n\
+\n\
+skyMap[selRA_, selDec_] := Graphics[{\n\
+    (* Milky Way approximation *)\n\
+    {Purple, Opacity[0.15], Thickness[0.03],\n\
+      Line[{#, -29 + 60 Sin[(# - 266) Degree]} & /@ Subdivide[0., 360., 99]]},\n\
+    (* Celestial equator + ecliptic *)\n\
+    {Blue, Opacity[0.4], Line[{{0, 0}, {360, 0}}]},\n\
+    {Orange, Opacity[0.4], Dashed,\n\
+      Line[{#, 23.4 Sin[# Degree]} & /@ Subdivide[0., 360., 99]]},\n\
+    (* Landmarks *)\n\
+    KeyValueMap[\n\
+      Function[{n, p},\n\
+        {Red, PointSize[0.012], Point[p],\n\
+         Text[Style[n, 9, Darker[Red]], p, {0, -1.5}]}],\n\
+      skyLandmarks],\n\
+    (* Selection *)\n\
+    If[NumericQ[selRA],\n\
+      {Green, PointSize[0.02], Point[{selRA, selDec}],\n\
+       Thickness[0.004], Circle[{selRA, selDec}, 6]}, {}]\n\
+  }, PlotRange -> {{360, 0}, {-90, 90}},\n\
+     Frame -> True,\n\
+     FrameLabel -> {\"Right Ascension (\[Degree])\", \"Declination (\[Degree])\"},\n\
+     AspectRatio -> 1/2, GridLines -> Automatic,\n\
+     GridLinesStyle -> Directive[Gray, Opacity[0.3], Dashed],\n\
+     ImageSize -> 680];\n\
+\n\
+DynamicModule[{selRA = 85.25, selDec = -2.46, fov = 0.5,\n\
+    survey = \"DSS2 Red\", cmap = \"GrayTones\",\n\
+    data = None, status = \"Click the map to select coordinates.\"},\n\
+  Column[{\n\
+    EventHandler[Dynamic[skyMap[selRA, selDec]],\n\
+      {\"MouseClicked\" :> With[{p = MousePosition[\"Graphics\"]},\n\
+        If[Head[p] === List && Length[p] == 2, {selRA, selDec} = p]]}],\n\
+    Row[{\"RA: \",  Dynamic[NumberForm[selRA, {6, 3}]], \"\[Degree]   \",\n\
+         \"Dec: \", Dynamic[NumberForm[selDec, {6, 3}]], \"\[Degree]   \",\n\
+         \"FOV: \", Slider[Dynamic[fov], {0.05, 3, 0.05}],\n\
+         \" \", Dynamic[NumberForm[fov, {3, 2}]], \"\[Degree]   \",\n\
+         \"Survey: \", PopupMenu[Dynamic[survey],\n\
+           {\"DSS2 Red\", \"2MASS-J\", \"2MASS-K\", \"WISE 3.4\"}], \"   \",\n\
+         Button[Style[\"Download\", Bold, White],\n\
+           status = \"Contacting SkyView\[Ellipsis]\";\n\
+           Module[{bytes = skyViewBytes[selRA, selDec, survey, fov, 600], tmp, arr},\n\
+             If[!ByteArrayQ[bytes] || Length[bytes] < 8000,\n\
+               data = None;\n\
+               status = \"\[Times] SkyView returned no data at that point\",\n\
+               tmp = CreateFile[]; BinaryWrite[tmp, bytes]; Close[tmp];\n\
+               arr = loadFITSArray[tmp]; DeleteFile[tmp];\n\
+               If[MatrixQ[arr, NumericQ], data = arr;\n\
+                 status = \"\[Checkmark] \" <> ToString[Dimensions[arr]] <>\n\
+                          \" from \" <> survey,\n\
+                 data = None; status = \"\[Times] FITS decode failed\"]]],\n\
+           Background -> RGBColor[0.12, 0.45, 0.80], ImageSize -> 120]}],\n\
+    Style[Dynamic[status], Italic, FontSize -> 11],\n\
+    Dynamic[If[data === None,\n\
+      Framed[Style[\"(no image downloaded yet)\", 12, Gray],\n\
+        ImageSize -> {540, 300}, Alignment -> Center],\n\
+      With[{lohi = Quantile[Flatten[data], {0.01, 0.995}]},\n\
+        ArrayPlot[Reverse[data], ColorFunction -> ColorData[cmap],\n\
+          PlotRange -> lohi, Frame -> True,\n\
+          PlotLabel -> Style[survey <> \" @ RA=\" <>\n\
+            ToString[NumberForm[selRA, {5, 2}]] <> \"\[Degree], Dec=\" <>\n\
+            ToString[NumberForm[selDec, {5, 2}]] <> \"\[Degree]\", Bold, 11],\n\
+          ImageSize -> 540]]]]\n\
+  }, Spacings -> 1]]"], "Input"],
+
+ imgCell["click_map_preview.png",
+  "Figure 8. Static preview of \[Section]6.3 after a click near \
+the Horsehead and a press of Download. The upper panel is the \
+clickable all-sky Mercator (celestial equator in blue, ecliptic \
+dashed in orange, Milky Way in purple, seven landmarks in red; \
+the green marker is the cursor's current selection). The lower \
+panel is the resulting DSS2 Red cutout. DSS2 / STScI."],
+
+ Cell[TextData[{"A more elaborate version with constellation \
+patches and a save-FITS/PNG button lives in ",
+   StyleBox["Wolfram/InteractiveSkyMap.wl", "Input"],
+   " (",
+   StyleBox["InteractiveSkyMap`launchInteractiveSkyMap[]", "Input"],
+   "), but the cell above already covers the main pedagogical \
+point: ",
+   StyleBox["EventHandler", "Input"],
+   " + ",
+   StyleBox["MousePosition[\"Graphics\"]", "Input"],
+   " turns any 2-D plot into a coordinate picker."}], "Text"],
+
+ (* ---- Section 7: simulated ---- *)
 
  Cell["7. When the network is down: a physics-based simulation",
       "Section"],
