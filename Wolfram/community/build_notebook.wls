@@ -44,31 +44,6 @@ cheatGrid = Grid[{
   Frame -> All, Background -> {None, {{LightGray}, White}},
   Alignment -> {Left, Center}, Spacings -> {1.2, 0.6}];
 
-(* Licensing table *)
-licenceGrid = Grid[{
-  {Style["Survey", Bold], Style["Status", Bold],
-   Style["Commercial use", Bold], Style["Required attribution", Bold]},
-  {"2MASS J/H/K",      "Public domain (NASA/NSF)",
-   "Yes",
-   "Joint project of UMass and IPAC/Caltech, NASA/NSF-funded"},
-  {"WISE W1\[Dash]W4", "Public domain (NASA)",
-   "Yes",
-   "UCLA + JPL/Caltech, NASA-funded"},
-  {"GALEX",            "Public domain (NASA)",
-   "Yes",
-   "NASA Galaxy Evolution Explorer"},
-  {"DSS / DSS2",       "Free for research & education, attribution required (STScI)",
-   "Ask STScI",
-   "Produced at STScI under grant NAG W-2166 from Palomar/UK Schmidt photographic data"},
-  {"SDSS imagery",     "Free with acknowledgement",
-   "With attribution",
-   "See sdss.org/collaboration/citing-sdss"}},
-  Frame -> All,
-  Background -> {None, {{LightYellow},
-                        {GrayLevel[0.95]}, {White}}},
-  Alignment -> {Left, Top},
-  Spacings -> {1.2, 0.8}];
-
 cells = {
 
  Cell["From Python to Wolfram: Exploring NASA SkyView", "Title"],
@@ -127,10 +102,7 @@ Dec \[Minus]2.46\[Degree], 0.5\[Degree] on a side. The bright star at \
 the upper left is \[Sigma] Orionis; the horse-head silhouette is a \
 foreground molecular cloud eating into the emission nebula IC 434 \
 behind it. Rendered by Wolfram in a single ArrayPlot call. \
-Image credit: Digitized Sky Survey 2 (Caltech Palomar plates), \
-produced at STScI under U.S. Government grant NAG W-2166 and \
-distributed through NASA SkyView; reproduced here under STScI's \
-research/education terms \[LongDash] see \[Section]10."],
+DSS2 / STScI."],
 
  (* ---- Section 1: What the toolkit does ---- *)
 
@@ -374,10 +346,8 @@ but the extinction is already half its optical value \[LongDash] \
 field stars punch through. At 2MASS K (2.17 \[Mu]m) the nebula is \
 almost transparent. WISE W1 (3.4 \[Mu]m, shown in SunsetColors) \
 reveals warm dust emission from the nebula itself, plus the \
-broadband glow of PAH molecules along the IC 434 ridge. Image \
-credits: DSS2 / STScI (research-education use, see \[Section]10); \
-2MASS J, K \[Dash] IPAC/Caltech, UMass (public domain, NASA/NSF); \
-WISE W1 \[Dash] NASA / JPL-Caltech / UCLA (public domain)."],
+broadband glow of PAH molecules along the IC 434 ridge. \
+DSS2 / STScI; 2MASS / IPAC; WISE / NASA."],
 
  Cell[TextData[{
    "The dust extinction curve is roughly ",
@@ -438,9 +408,7 @@ Image[rgb, Interleaving -> True, ImageSize -> 520]"], "Input"],
 H (1.65 \[Mu]m) in green, J (1.25 \[Mu]m) in blue. Reddened stars \
 behind the dust column glow orange; the nebular emission of IC 434 \
 shines blue-white. An asinh stretch keeps stars from saturating \
-while preserving low-surface-brightness structure. Image credit: \
-Two Micron All Sky Survey (IPAC/Caltech + UMass, NASA/NSF-funded), \
-public domain."],
+while preserving low-surface-brightness structure. 2MASS / IPAC."],
 
  (* ---- Section 6: rudimentary analysis ---- *)
 
@@ -514,8 +482,7 @@ tauEst  = -Log[nebMean/bgMean];\n\
 percentile-clipped image (upper left), log10-scaled version revealing \
 faint IC 434 emission (upper right), dark-nebula segmentation at the \
 30th percentile (lower left), and intensity histogram with the \
-threshold marked (lower right). Image credit: DSS2 / STScI \
-(research-education use, see \[Section]10)."],
+threshold marked (lower right). DSS2 / STScI."],
 
  Cell["6.4 Smoothing, log scaling, edge detection", "Subsection"],
 
@@ -619,10 +586,7 @@ Way. M16 \[LongDash] the Eagle Nebula, home of Hubble's Pillars of \
 Creation. M51 \[LongDash] the Whirlpool Galaxy interacting with NGC \
 5195 at 23 Mly. M1 \[LongDash] the Crab Nebula, the expanding \
 remnant of a supernova seen by Chinese astronomers in 1054 AD. \
-Image credit: Digitized Sky Survey 2 (Caltech Palomar + UK Schmidt \
-plates), produced at STScI under grant NAG W-2166 and distributed \
-through NASA SkyView; reproduced under STScI's research-education \
-terms (see \[Section]10)."],
+DSS2 / STScI."],
 
  Cell[TextData[{"For individual high-resolution plates of each \
 target, see ",
@@ -715,8 +679,7 @@ Every control is a built-in Wolfram widget \[LongDash] a catalog \
 picker, RA/Dec input fields, an FOV slider, a survey picker, a \
 pixel-size picker, and a colour-map picker \[LongDash] wired up \
 inside a single DynamicModule. The status line under the buttons \
-reports success, image size, and bytes received. Image credit: \
-DSS2 / STScI (research-education use, see \[Section]10)."],
+reports success, image size, and bytes received. DSS2 / STScI."],
 
  Cell[BoxData["\
 catalog = <|\n\
@@ -857,71 +820,34 @@ cells as a real DSS cutout."}], "Text"],
 real SkyView image. Useful for teaching, demos, and any environment \
 where network calls are blocked."],
 
- (* ---- Section 10: data rights ---- *)
+ (* ---- Section 10: acknowledgements ---- *)
 
- Cell["10. Data rights and attribution", "Section"],
+ Cell["10. Acknowledgements", "Section"],
 
- Cell[TextData[{"Every image in this notebook was fetched from NASA \
-SkyView, which aggregates dozens of sky surveys with a range of \
-licensing terms. The short version: the NASA-operated surveys (",
-   StyleBox["2MASS, WISE, GALEX, ROSAT All-Sky Survey, NVSS", "Input"],
-   ") are unambiguously ",
-   StyleBox["public domain", FontWeight -> Bold],
-   " under 17 U.S.C. \[Section] 105; photographic sky surveys \
-distributed through STScI (",
-   StyleBox["DSS, DSS2", "Input"],
-   ") are free for research and education with a required \
-attribution sentence. The table below summarises what you can do \
-with each."}], "Text"],
-
- Cell[BoxData[ToBoxes[licenceGrid]],
-  "Output", ShowCellLabel -> False,
-  TextAlignment -> Center,
-  CellMargins -> {{0, 0}, {8, 14}}],
-
- Cell[TextData[{StyleBox["Required attribution for DSS imagery",
-     FontWeight -> Bold],
-   " (reproduced verbatim from ",
-   ButtonBox["archive.stsci.edu/dss/acknowledging.html",
+ Cell[TextData[{"All images in this post were fetched from the ",
+   ButtonBox["NASA SkyView Virtual Observatory",
      BaseStyle -> "Hyperlink",
-     ButtonData -> {URL["https://archive.stsci.edu/dss/acknowledging.html"],
-                    None}],
-   "):\n\n\[OpenCurlyDoubleQuote]The Digitized Sky Surveys were \
-produced at the Space Telescope Science Institute under U.S. \
-Government grant NAG W-2166. The images of these surveys are based \
-on photographic data obtained using the Oschin Schmidt Telescope on \
-Palomar Mountain and the UK Schmidt Telescope.\[CloseCurlyDoubleQuote]"}],
-      "Text"],
+     ButtonData -> {URL["https://skyview.gsfc.nasa.gov/"], None}],
+   ". The standard acknowledgement sentences for the two surveys \
+used are reproduced below."}], "Text"],
 
- Cell[TextData[{StyleBox["Recommended attribution for 2MASS",
-     FontWeight -> Bold],
-   " (reproduced verbatim from ",
-   ButtonBox["irsa.ipac.caltech.edu",
-     BaseStyle -> "Hyperlink",
-     ButtonData -> {URL["https://irsa.ipac.caltech.edu/Missions/2mass.html"],
-                    None}],
-   "):\n\n\[OpenCurlyDoubleQuote]This publication makes use of data \
+ Cell[TextData[{
+   "\[OpenCurlyDoubleQuote]The Digitized Sky Surveys were produced at \
+the Space Telescope Science Institute under U.S. Government grant \
+NAG W-2166. The images of these surveys are based on photographic \
+data obtained using the Oschin Schmidt Telescope on Palomar Mountain \
+and the UK Schmidt Telescope.\[CloseCurlyDoubleQuote]"}], "Text"],
+
+ Cell[TextData[{
+   "\[OpenCurlyDoubleQuote]This publication makes use of data \
 products from the Two Micron All Sky Survey, which is a joint project \
 of the University of Massachusetts and the Infrared Processing and \
 Analysis Center / California Institute of Technology, funded by the \
 National Aeronautics and Space Administration and the National \
 Science Foundation.\[CloseCurlyDoubleQuote]"}], "Text"],
 
- Cell[TextData[{StyleBox["Wolfram Community compatibility. ",
-     FontWeight -> Bold],
-   "Posts on community.wolfram.com are redistributed by Wolfram \
-under CC-BY-SA 4.0 (see the ",
-   ButtonBox["Community Terms of Use",
-     BaseStyle -> "Hyperlink",
-     ButtonData -> {URL["https://community.wolfram.com/tou"], None}],
-   "). Public-domain imagery (2MASS, WISE, GALEX, \[Ellipsis]) flows \
-through that licence without friction. DSS imagery is distributed \
-under STScI's standard research-and-education terms; including the \
-attribution sentence above next to every DSS figure is the \
-conventional way to discharge that obligation in a Community post. \
-This notebook does so by (a) captioning every DSS figure with the \
-STScI credit and (b) reproducing the full attribution text above."}],
-      "Text"],
+ Cell[TextData[{"WISE data courtesy of NASA / JPL-Caltech / UCLA. \
+Code in this repository is MIT-licensed."}], "Text"],
 
  (* ---- Section 11: takeaways ---- *)
 
@@ -962,9 +888,8 @@ into a viewable RGB composite; three ",
    " channels and a ",
    StyleBox["Transpose[_, {3, 1, 2}]", "Input"],
    " produce the final image in one line.\n",
-   "\[Bullet] Images shipped with the notebook are NASA SkyView \
-public-domain (2MASS, WISE) or STScI-distributed research-and-\
-education data (DSS) \[LongDash] see \[Section]10."}], "Text"],
+   "\[Bullet] Images shipped with the notebook come from NASA \
+SkyView; acknowledgements in \[Section]10."}], "Text"],
 
  Cell["12. References and further reading", "Section"],
 
@@ -1000,8 +925,8 @@ the asinh-stretch colour-composite recipe used in \[Section]5.\n",
      BaseStyle -> "Hyperlink",
      ButtonData -> {URL["https://github.com/mthiel74/AstronomyImages"],
                     None}],
-   " \[LongDash] MIT-licensed code, bundled public-domain and \
-research/education imagery."}], "Text"]
+   " \[LongDash] MIT-licensed code, bundled SkyView imagery."}],
+      "Text"]
 };
 
 nb = Notebook[cells,
