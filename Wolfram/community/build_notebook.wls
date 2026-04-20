@@ -1,10 +1,9 @@
 #!/usr/bin/env wolframscript
 (* Build Wolfram/community/AstronomyImagesPost.nb \[LongDash] a Wolfram
-   Community post that walks through the Python-to-Wolfram translation
-   of the AstronomyImages toolkit, ships a dozen SkyView cutouts of
-   famous targets, a 2MASS J/H/K false-colour composite, a
-   multi-wavelength Horsehead panel, and a live downloader you can
-   aim at any object. *)
+   Community post on pulling real telescope imagery from NASA SkyView
+   with the Wolfram Language. Ships a dozen cutouts of famous targets,
+   a 2MASS J/H/K false-colour composite, a multi-wavelength Horsehead
+   panel, and a live downloader you can aim at any RA/Dec. *)
 
 hereDir = DirectoryName[If[$ScriptCommandLine =!= {}, $InputFileName,
                            NotebookFileName[]]];
@@ -31,25 +30,12 @@ imgCell[name_, caption_String: ""] := Cell[
   TextAlignment -> Center,
   CellMargins -> {{0, 0}, {10, 14}}];
 
-(* Two-column cheat-sheet grid *)
-cheatGrid = Grid[{
-  {Style["Python source", Bold],                 Style["Wolfram port", Bold]},
-  {"api_examples.json",                          "APIExamples.wl"},
-  {"horsehead_skyview.py",                       "HorseheadSkyView.wl"},
-  {"horsehead_skyview_fixed.py",                 "HorseheadSkyViewFixed.wl"},
-  {"horsehead_alternative.py",                   "HorseheadAlternative.wl"},
-  {"horsehead_complete_demo.py",                 "HorseheadCompleteDemo.wl"},
-  {"astronomy_viewer_gui.py",                    "AstronomyViewerGUI.wl"},
-  {"interactive_sky_map.py",                     "InteractiveSkyMap.wl"}},
-  Frame -> All, Background -> {None, {{LightGray}, White}},
-  Alignment -> {Left, Center}, Spacings -> {1.2, 0.6}];
-
 cells = {
 
- Cell["From Python to Wolfram: Exploring NASA SkyView", "Title"],
+ Cell["Exploring NASA SkyView with the Wolfram Language", "Title"],
 
- Cell["A walkthrough of the AstronomyImages toolkit port, with a \
-Messier gallery and a live survey downloader", "Subtitle"],
+ Cell["Live telescope imagery, dark-nebula analysis, and a \
+catalog-driven sky-survey downloader", "Subtitle"],
 
  Cell[TextData[{
    "Marco Thiel, April 2026 \[LongDash] ",
@@ -71,29 +57,35 @@ photographic sky surveys, three near-infrared bands from 2MASS, four \
 mid-infrared bands from WISE, and a pile of X-ray and radio surveys \
 on your desktop, all for free, all in FITS, and \[LongDash] for the \
 surveys NASA operates directly \[LongDash] all in the public domain. \
-The friction is now entirely in the tooling: how do you wire the HTTP \
-query, decode the FITS, stretch the pixels sensibly, overlay analysis \
-widgets, and avoid reinventing a matplotlib-plus-Tkinter wheel every \
-time you want to look at a new target?"}], "Text"],
+The friction is entirely in the tooling."}], "Text"],
 
- Cell[TextData[{
-   "The open-source project ",
-   StyleBox["AstronomyImages", "Input"],
-   " is a small Python answer to that question. This notebook is its \
-Wolfram-Language twin. We walk through the Python\[Dash]to\[Dash]\
-Wolfram translation (",
-   StyleBox["URLRead", "Input"], ", ",
-   StyleBox["Import[_, \"FITS\"]", "Input"], ", ",
-   StyleBox["ArrayPlot", "Input"], ", ",
-   StyleBox["Manipulate", "Input"],
-   "), pull a fresh 0.5\[Degree] DSS2 Red cutout of the Horsehead \
-Nebula from NASA SkyView, build a 2MASS J/H/K false-colour composite \
-with an asinh stretch, tour six Messier targets (M1, M16, M31, M42, \
-M45, M51) across multiple colour maps, and expose a self-contained \
-interactive downloader that lets you aim the whole pipeline at any \
-sky coordinate. Everything in the notebook is evaluable offline \
-thanks to bundled cutouts; the live cells touch the network only when \
-you ask them to."}], "Text"],
+ Cell[TextData[{"This notebook shows how little Wolfram Language \
+code that friction actually needs. One ",
+   StyleBox["URLRead", "Input"], " fetches a FITS cutout; one ",
+   StyleBox["Import", "Input"], " decodes it; one ",
+   StyleBox["ArrayPlot", "Input"], " renders it; one ",
+   StyleBox["DynamicModule", "Input"],
+   " wraps the lot into a live multi-survey explorer. Along the way \
+we pull a 0.5\[Degree] DSS2 Red cutout of the Horsehead Nebula, build \
+a 2MASS J/H/K false-colour composite with an asinh stretch, tour six \
+Messier targets (M1, M16, M31, M42, M45, M51) across multiple colour \
+maps, and expose a catalog-driven downloader that lets you aim the \
+pipeline at any RA/Dec on the sky. Every figure is reproducible from \
+the bundled FITS files; the live cells touch the network only when \
+you press the button."}], "Text"],
+
+ Cell[TextData[{"The code ships as self-contained ",
+   StyleBox[".wl", "Input"],
+   " packages in the ",
+   StyleBox["Wolfram/", "Input"],
+   " folder of the ",
+   ButtonBox["AstronomyImages",
+     BaseStyle -> "Hyperlink",
+     ButtonData -> {URL["https://github.com/mthiel74/AstronomyImages"],
+                    None}],
+   " repository (MIT-licensed). A parallel Python implementation \
+lives at the repository root for users who prefer that stack; the \
+rest of this notebook is strictly Wolfram."}], "Text"],
 
  imgCell["horsehead_DSS2_Red.png",
   "Figure 1. A live 600\[Times]600 DSS2 Red cutout of the Horsehead \
@@ -104,118 +96,9 @@ foreground molecular cloud eating into the emission nebula IC 434 \
 behind it. Rendered by Wolfram in a single ArrayPlot call. \
 DSS2 / STScI."],
 
- (* ---- Section 1: What the toolkit does ---- *)
+ (* ---- Section 1: Downloading ---- *)
 
- Cell["1. What the original Python toolkit does", "Section"],
-
- Cell[TextData[{"The Python project in the parent directory contains \
-five kinds of scripts:\n",
-   "\[Bullet] ",
-   ButtonBox["NASA SkyView",
-     BaseStyle -> "Hyperlink",
-     ButtonData -> {URL["https://skyview.gsfc.nasa.gov/"], None}],
-   " FITS cutout downloaders (30+ surveys \[LongDash] DSS2, 2MASS, \
-WISE, GALEX, RASS, NVSS\[Ellipsis]);\n",
-   "\[Bullet] fallback JPEG queries against SDSS SkyServer and STScI \
-DSS2 when SkyView is down;\n",
-   "\[Bullet] a physics-based simulation of the Horsehead dark nebula \
-\[LongDash] useful for pedagogy, and for demos in environments with \
-no network;\n",
-   "\[Bullet] two Tkinter GUIs (a catalog-driven viewer and a \
-clickable all-sky map);\n",
-   "\[Bullet] analysis scaffolding \[LongDash] histograms, \
-percentile clipping, optical-depth estimates, edge detection.\n\n",
-   "The Wolfram port mirrors every script as a self-contained ",
-   StyleBox[".wl", "Input"],
-   " package in the ", StyleBox["Wolfram/", "Input"],
-   " folder. The table below shows the 1-to-1 mapping."}], "Text"],
-
- Cell[BoxData[ToBoxes[cheatGrid]],
-  "Output", ShowCellLabel -> False,
-  TextAlignment -> Center,
-  CellMargins -> {{0, 0}, {8, 14}}],
-
- (* ---- Section 2: cheat sheet ---- *)
-
- Cell["2. A Python\[Dash]to\[Dash]Wolfram cheat-sheet", "Section"],
-
- Cell[TextData[{
-   "Most of the translation is a pleasant 1-to-1 substitution of \
-Python idioms for Wolfram ones. A few non-obvious ones are worth \
-calling out:\n",
-   "\[Bullet] ",
-   StyleBox["requests.get(url, params=..).content", "Input"],
-   " \[Rule] ",
-   StyleBox["URLRead[HTTPRequest[url <> \"?\" <> URLQueryEncode[params]]][\"BodyByteArray\"]",
-     "Input"],
-   "\n",
-   "\[Bullet] ",
-   StyleBox["astropy.io.fits.open(..)", "Input"],
-   " \[Rule] ",
-   StyleBox["Import[file, {\"FITS\", \"Data\"}]", "Input"],
-   " (+ ",
-   StyleBox["\"Metadata\"", "Input"],
-   " for the header)\n",
-   "\[Bullet] ",
-   StyleBox["numpy.linspace(a, b, n)", "Input"],
-   " \[Rule] ",
-   StyleBox["Subdivide[a, b, n - 1]", "Input"],
-   "\n",
-   "\[Bullet] ",
-   StyleBox["numpy.percentile(a, q)", "Input"],
-   " \[Rule] ",
-   StyleBox["Quantile[a, q/100]", "Input"],
-   "\n",
-   "\[Bullet] ",
-   StyleBox["numpy.random.normal / poisson", "Input"],
-   " \[Rule] ",
-   StyleBox["RandomVariate[NormalDistribution[..]]", "Input"],
-   " / ",
-   StyleBox["RandomVariate[PoissonDistribution[..]]", "Input"],
-   "\n",
-   "\[Bullet] ",
-   StyleBox["matplotlib.imshow + colorbar", "Input"],
-   " \[Rule] ",
-   StyleBox["ArrayPlot[Reverse[data], PlotLegends -> Automatic]",
-     "Input"],
-   "\n",
-   "\[Bullet] ",
-   StyleBox["Tkinter widget tree", "Input"],
-   " \[Rule] ",
-   StyleBox["DynamicModule[..] + Manipulate[..]", "Input"],
-   "\n",
-   "\[Bullet] ",
-   StyleBox["scipy.ndimage.gaussian_filter / sobel", "Input"],
-   " \[Rule] ",
-   StyleBox["GaussianFilter / GradientFilter", "Input"],
-   " (act directly on 2-D arrays)\n",
-   "\[Bullet] ",
-   StyleBox["json.dump", "Input"],
-   " \[Rule] ",
-   StyleBox["Export[file, assoc, \"JSON\"]", "Input"]}], "Text"],
-
- Cell[TextData[{
-   "A subtlety worth flagging: ",
-   StyleBox["URLExecute[url, \"ByteArray\"]", "Input"],
-   " is a very tempting translation of ",
-   StyleBox["requests.get(...).content", "Input"],
-   " \[LongDash] but the second argument of ",
-   StyleBox["URLExecute", "Input"],
-   " is the ",
-   StyleBox["Import", "Input"],
-   " element, not the response encoding. When the server returns ",
-   StyleBox["Content-Type: image/fits", "Input"],
-   " the call therefore tries to parse the body as a FITS file and \
-extract a field called \"ByteArray\", which does not exist. The \
-working idiom, ",
-   StyleBox["URLRead[HTTPRequest[url]][\"BodyByteArray\"]", "Input"],
-   ", returns the raw bytes and plays nicely with ",
-   StyleBox["Import", "Input"],
-   " downstream."}], "Text"],
-
- (* ---- Section 3: downloading ---- *)
-
- Cell["3. Downloading a real image from NASA SkyView", "Section"],
+ Cell["1. Downloading a real image from NASA SkyView", "Section"],
 
  Cell[TextData[{"Every parameter SkyView needs is packed into the \
 query string: where on the sky (",
@@ -241,6 +124,23 @@ skyViewBytes[ra_, dec_, survey_, fov_: 0.5, pixels_: 600] :=\n\
   Module[{resp = URLRead[HTTPRequest[skyViewURL[ra, dec, survey, fov, pixels]]]},\n\
     If[resp === $Failed || resp[\"StatusCode\"] =!= 200,\n\
       $Failed, resp[\"BodyByteArray\"]]];"], "Input"],
+
+ Cell[TextData[{StyleBox["Heads-up on URLRead vs URLExecute.",
+     FontWeight -> Bold],
+   " ",
+   StyleBox["URLExecute[url, \"ByteArray\"]", "Input"],
+   " looks like it should give you the raw response bytes \[LongDash] \
+it doesn't. The second argument of ",
+   StyleBox["URLExecute", "Input"],
+   " is the ",
+   StyleBox["Import", "Input"],
+   " element name, not the response encoding. When SkyView returns ",
+   StyleBox["Content-Type: image/fits", "Input"],
+   " the call therefore tries to parse the body as a FITS file and \
+extract a field called \"ByteArray\", which does not exist. The \
+working idiom is ",
+   StyleBox["URLRead[HTTPRequest[url]][\"BodyByteArray\"]", "Input"],
+   " as above."}], "Text"],
 
  Cell[TextData[{"The notebook ships with eighteen pre-downloaded \
 cutouts in ",
@@ -289,7 +189,7 @@ quickView[data]"], "Input"],
 
  (* ---- Section 4: multi-wavelength ---- *)
 
- Cell["4. One object, four wavelengths", "Section"],
+ Cell["2. One object, four wavelengths", "Section"],
 
  Cell[TextData[{"SkyView stitches together data from many surveys, so \
 with one coordinate and five lines of Wolfram you can look at the \
@@ -363,7 +263,7 @@ in the Horsehead's optical-depth-of-order-unity at 550 nm gives \
 
  (* ---- Section 5: RGB composite ---- *)
 
- Cell["5. A 2MASS J/H/K false-colour composite", "Section"],
+ Cell["3. A 2MASS J/H/K false-colour composite", "Section"],
 
  Cell[TextData[{"The three 2MASS bands (J at 1.25 \[Mu]m, H at 1.65, \
 K at 2.17) were taken with the same camera at the same time through \
@@ -412,14 +312,14 @@ while preserving low-surface-brightness structure. 2MASS / IPAC."],
 
  (* ---- Section 6: rudimentary analysis ---- *)
 
- Cell["6. Rudimentary image analysis", "Section"],
+ Cell["4. Rudimentary image analysis", "Section"],
 
  Cell[TextData[{"Every tool you need for a first-pass numerical look \
 at a FITS image is in the top-level ",
    StyleBox["System`", "Input"],
    " context. No toolbox imports."}], "Text"],
 
- Cell["6.1 Summary statistics", "Subsection"],
+ Cell["4.1 Summary statistics", "Subsection"],
 
  Cell[BoxData["flat = Flatten[data];"], "Input"],
 
@@ -430,7 +330,7 @@ at a FITS image is in the top-level ",
   \"Median\" -> N @ Median[flat],\n\
   \"StdDev\" -> N @ StandardDeviation[flat]|>"], "Input"],
 
- Cell["6.2 Intensity histogram", "Subsection"],
+ Cell["4.2 Intensity histogram", "Subsection"],
 
  Cell[BoxData["\
 Histogram[flat, 80,\n\
@@ -440,7 +340,7 @@ Histogram[flat, 80,\n\
   PlotLabel -> \"Intensity distribution\",\n\
   ImageSize -> 520]"], "Input"],
 
- Cell["6.3 Dark-nebula segmentation and optical depth", "Subsection"],
+ Cell["4.3 Dark-nebula segmentation and optical depth", "Subsection"],
 
  Cell[TextData[{"The Horsehead's dust column attenuates background \
 starlight by a factor ",
@@ -484,7 +384,7 @@ faint IC 434 emission (upper right), dark-nebula segmentation at the \
 30th percentile (lower left), and intensity histogram with the \
 threshold marked (lower right). DSS2 / STScI."],
 
- Cell["6.4 Smoothing, log scaling, edge detection", "Subsection"],
+ Cell["4.4 Smoothing, log scaling, edge detection", "Subsection"],
 
  Cell[TextData[{"Wolfram's image-processing operators all take plain \
 2-D arrays \[LongDash] no conversion needed. ",
@@ -510,7 +410,7 @@ Grid[{{\n\
 
  (* ---- Section 7: Messier gallery ---- *)
 
- Cell["7. A Messier gallery", "Section"],
+ Cell["5. A Messier gallery", "Section"],
 
  Cell[TextData[{"To convince you the pipeline isn't Horsehead-only, \
 below is a six-target tour through the Messier catalogue, all \
@@ -597,9 +497,9 @@ target, see ",
 
  (* ---- Section 8: interactive explorer ---- *)
 
- Cell["8. Interactive explorers", "Section"],
+ Cell["6. Interactive explorers", "Section"],
 
- Cell["8.1 Offline Manipulate over the bundled surveys", "Subsection"],
+ Cell["6.1 Offline Manipulate over the bundled surveys", "Subsection"],
 
  Cell[TextData[{"The ",
    StyleBox["Manipulate", "Input"],
@@ -656,7 +556,7 @@ Manipulate[\n\
   Style[\"Dark-threshold percentile\", Bold],\n\
   {{pct, 30}, 5, 70, 1}]"], "Input"],
 
- Cell["8.2 Live downloader \[LongDash] any object, any survey",
+ Cell["6.2 Live downloader \[LongDash] any object, any survey",
       "Subsection"],
 
  Cell[TextData[{"The next cell is a small interactive viewer that \
@@ -790,7 +690,7 @@ same downloader wired in."}], "Text"],
 
  (* ---- Section 9: simulated ---- *)
 
- Cell["9. When the network is down: a physics-based simulation",
+ Cell["7. When the network is down: a physics-based simulation",
       "Section"],
 
  Cell[TextData[{"Teaching environments often ban outbound network \
@@ -822,7 +722,7 @@ where network calls are blocked."],
 
  (* ---- Section 10: acknowledgements ---- *)
 
- Cell["10. Acknowledgements", "Section"],
+ Cell["8. Acknowledgements", "Section"],
 
  Cell[TextData[{"All images in this post were fetched from the ",
    ButtonBox["NASA SkyView Virtual Observatory",
@@ -851,35 +751,34 @@ Code in this repository is MIT-licensed."}], "Text"],
 
  (* ---- Section 11: takeaways ---- *)
 
- Cell["11. Takeaways", "Section"],
+ Cell["9. Takeaways", "Section"],
 
  Cell[TextData[{
    "\[Bullet] ",
-   StyleBox["URLRead + HTTPRequest + URLQueryEncode", "Input"],
-   " replace the Python ",
-   StyleBox["requests", "Input"], " / ",
-   StyleBox["urllib", "Input"],
-   " dance in two lines.\n",
+   StyleBox["URLRead", "Input"], " + ",
+   StyleBox["HTTPRequest", "Input"], " + ",
+   StyleBox["URLQueryEncode", "Input"],
+   " pull a SkyView FITS cutout in two lines.\n",
    "\[Bullet] ",
    StyleBox["Import[_, {\"FITS\", \"Data\"}]", "Input"],
-   " reads SkyView's raw bytes with no ",
-   StyleBox["BytesIO", "Input"],
-   " shim; the only quirk is that it returns a single-entry \
-Association for primary-HDU files.\n",
+   " decodes the bytes directly; for a single-HDU file it returns a \
+one-entry Association, so ",
+   StyleBox["First[Values[..]]", "Input"],
+   " is the robust unwrap.\n",
    "\[Bullet] ",
    StyleBox["ArrayPlot", "Input"], ", ",
    StyleBox["Histogram", "Input"], ", ",
    StyleBox["GradientFilter", "Input"],
    " and ",
    StyleBox["GaussianFilter", "Input"],
-   " cover most of matplotlib + scipy.ndimage for this use case, \
-all operating directly on numeric matrices.\n",
+   " operate directly on 2-D numeric matrices \[LongDash] no \
+toolbox imports.\n",
    "\[Bullet] ",
    StyleBox["DynamicModule", "Input"], " + ",
    StyleBox["PopupMenu", "Input"], " + ",
    StyleBox["Button", "Input"],
-   " turns a 30-line Tkinter GUI into a 30-line notebook cell that \
-works on any platform with no installation beyond Wolfram itself.\n",
+   " makes a cross-platform live downloader in thirty lines that \
+works anywhere Wolfram is installed.\n",
    "\[Bullet] An ",
    StyleBox["asinh", "Input"],
    " stretch is the textbook recipe for turning raw telescope counts \
@@ -889,9 +788,9 @@ into a viewable RGB composite; three ",
    StyleBox["Transpose[_, {3, 1, 2}]", "Input"],
    " produce the final image in one line.\n",
    "\[Bullet] Images shipped with the notebook come from NASA \
-SkyView; acknowledgements in \[Section]10."}], "Text"],
+SkyView; acknowledgements in \[Section]8."}], "Text"],
 
- Cell["12. References and further reading", "Section"],
+ Cell["10. References and further reading", "Section"],
 
  Cell[TextData[{
    "\[Bullet] NASA SkyView: ",
@@ -919,7 +818,7 @@ SkyView; acknowledgements in \[Section]10."}], "Text"],
                     None}],
    "\n",
    "\[Bullet] Lupton et al. 2004 (arXiv:astro-ph/0312483) \[LongDash] \
-the asinh-stretch colour-composite recipe used in \[Section]5.\n",
+the asinh-stretch colour-composite recipe used in \[Section]3.\n",
    "\[Bullet] This repository: ",
    ButtonBox["github.com/mthiel74/AstronomyImages",
      BaseStyle -> "Hyperlink",
