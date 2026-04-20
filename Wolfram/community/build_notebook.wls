@@ -606,7 +606,18 @@ lives inside one ",
    StyleBox["DynamicModule", "Input"],
    " \[LongDash] no global state leaks out. The catalog is just an ",
    StyleBox["Association", "Input"],
-   " so you can extend it to any target you like."}], "Text"],
+   " so you can extend it to any target you like. The figure below \
+shows what the evaluated cell looks like after a fresh download of \
+M42 in DSS2 Red."}], "Text"],
+
+ imgCell["gui_preview.png",
+  "Figure 7. The live downloader after pressing Download & plot with \
+M42 Orion Nebula / DSS2 Red / 1\[Degree] FOV / 600 px / SunsetColors. \
+Every control is a built-in Wolfram widget \[LongDash] a catalog \
+picker, RA/Dec input fields, an FOV slider, a survey picker, a \
+pixel-size picker, and a colour-map picker \[LongDash] wired up \
+inside a single DynamicModule. The status line under the buttons \
+reports success, image size, and bytes received."],
 
  Cell[BoxData["\
 catalog = <|\n\

@@ -323,4 +323,71 @@ stats = <|
 Export[FileNameJoin[{imgDir, "analysis_stats.json"}], stats, "JSON"];
 Print["  wrote analysis_stats.json"];
 
+(* =================================================================
+   6. GUI preview \[LongDash] a static screenshot of the live
+      downloader, for inclusion in the notebook's \[Section]8.2
+      (since a Dynamic widget itself cannot be inlined as a figure).
+   ================================================================= *)
+
+Print["---- GUI preview"];
+
+guiPreviewSurveys  = {"DSS2 Red", "DSS2 Blue", "DSS2 IR",
+                      "2MASS-J", "2MASS-H", "2MASS-K",
+                      "WISE 3.4", "WISE 4.6", "WISE 12", "WISE 22",
+                      "GALEX Near UV"};
+guiPreviewTargets  = {"Horsehead Nebula", "M42 Orion Nebula",
+                      "M45 Pleiades", "M31 Andromeda",
+                      "M16 Eagle Nebula", "M51 Whirlpool",
+                      "M1 Crab Nebula", "M104 Sombrero",
+                      "NGC 2024 Flame", "Veil Nebula", "(custom)"};
+guiPreviewCmaps    = {"GrayTones", "SunsetColors", "TemperatureMap",
+                      "Rainbow", "DeepSeaColors", "AuroraColors",
+                      "SolarColors"};
+
+(* Use the already-downloaded M42 cutout as the "result" shown on the
+   right-hand plot panel. Falls back to the Horsehead DSS Red if M42
+   isn't around. *)
+guiPreviewFile =
+  FirstCase[{FileNameJoin[{imgDir, "M42_Orion_Nebula_DSS2_Red.fits"}],
+             FileNameJoin[{imgDir, "horsehead_DSS2_Red.fits"}]},
+    f_String /; FileExistsQ[f] :> f, None];
+
+If[guiPreviewFile =!= None,
+  Module[{gd, gLo, gHi, controls, plot, gui},
+    gd = loadFITSData[guiPreviewFile];
+    {gLo, gHi} = percClip[gd];
+    controls = Panel[Column[{
+      Style["Live SkyView downloader", Bold, 14],
+      Row[{"Target: ",  PopupMenu["M42 Orion Nebula",
+          guiPreviewTargets, FieldSize -> 22]}],
+      Row[{"RA (\[Degree]): ",  InputField[83.8213, Number, FieldSize -> 10]}],
+      Row[{"Dec (\[Degree]): ", InputField[-5.3903, Number, FieldSize -> 10]}],
+      Row[{"FOV (\[Degree]): ", Slider[1.0, {0.02, 5.0, 0.02}],
+           " ", Style["1.00", FontSize -> 11]}],
+      Row[{"Survey: ",      PopupMenu["DSS2 Red",  guiPreviewSurveys,
+                                      FieldSize -> 22]}],
+      Row[{"Pixels: ",      PopupMenu[600, {300, 500, 600, 800, 1000}]}],
+      Row[{"Colour map: ",  PopupMenu["SunsetColors", guiPreviewCmaps]}],
+      Row[{
+        Button[Style["Download & plot", Bold, White], Null,
+          Background -> RGBColor[0.12, 0.45, 0.80], ImageSize -> 200],
+        Spacer[6],
+        Button["Save FITS", Null, ImageSize -> 120]}],
+      Style["\[Checkmark] {600, 600} image from DSS2 Red (653,760 bytes)",
+            Italic, FontSize -> 11]
+    }, Spacings -> 0.8], ImageSize -> 400];
+    plot = ArrayPlot[Reverse[gd],
+      ColorFunction -> ColorData["SunsetColors"],
+      PlotRange -> {gLo, gHi},
+      Frame -> True,
+      PlotLabel -> Style["M42 Orion Nebula \[LongDash] DSS2 Red",
+                         Bold, 12],
+      FrameLabel -> {"X (pixels)", "Y (pixels)"},
+      ImageSize -> 540];
+    gui = Row[{controls, Spacer[12], plot}];
+    Export[FileNameJoin[{imgDir, "gui_preview.png"}],
+      Rasterize[gui, ImageResolution -> 140]];
+    Print["  wrote gui_preview.png"]],
+  Print["  ! no cutout available for GUI preview"]];
+
 Print["\nAll done."];
