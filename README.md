@@ -62,32 +62,30 @@ See `claude.md` for complete technical documentation, API details, and usage exa
 
 ### Astronomical Data Usage Rights
 
-All astronomical survey data accessed through this tool is **publicly available** and can be used freely with proper attribution:
+NASA SkyView aggregates data from many surveys. **Licensing depends on who produced the survey, not where you downloaded it from.** The two regimes are:
 
-#### NASA SkyView Data (DSS2, WISE, etc.)
-- **License**: Public Domain (U.S. Government Work)
+#### NASA-operated surveys (2MASS, WISE, GALEX, ROSAT, NVSS, …)
+- **License**: Public Domain (NASA work, 17 U.S.C. § 105; or joint NASA/NSF mission releases)
 - **Policy**: https://skyview.gsfc.nasa.gov/about.html
 - **What you CAN do**:
   - ✅ Use for research, education, or personal projects
   - ✅ Post images on GitHub, LinkedIn, Twitter, or any social media
   - ✅ Include in presentations, papers, and publications
   - ✅ Use commercially without restrictions
-- **Attribution**: Recommended but not required. Example: "Image courtesy of SkyView/NASA"
+- **Attribution (recommended, not required)** for 2MASS: *"This publication makes use of data products from the Two Micron All Sky Survey, which is a joint project of the University of Massachusetts and the Infrared Processing and Analysis Center / California Institute of Technology, funded by the National Aeronautics and Space Administration and the National Science Foundation."*
+- **Attribution (recommended, not required)** for WISE: *"This publication makes use of data products from the Wide-field Infrared Survey Explorer, a joint project of UCLA and JPL/Caltech, funded by NASA."*
 
-#### 2MASS Survey Data
-- **License**: Public Domain
-- **Policy**: https://www.ipac.caltech.edu/2mass/overview/about2mass.html
-- **What you CAN do**: Same as NASA data (public domain)
-- **Attribution**: "This publication makes use of data products from the Two Micron All Sky Survey (2MASS)"
-
-#### DSS (Digitized Sky Survey)
-- **License**: Free for research and educational use
-- **Policy**: https://archive.stsci.edu/dss/acknowledging.html
+#### DSS / DSS2 (Digitized Sky Survey, STScI-distributed)
+- **License**: **Not public domain.** Free for research and educational use; commercial use requires contacting STScI.
+- **Copyright**: held by the Anglo-Australian Observatory Board, Caltech (Palomar plates), AURA, and UK SERC/PPARC + the Anglo-Australian Telescope Board, depending on the plate. Distributed by STScI under research/education terms.
+- **Policy**: https://archive.stsci.edu/dss/acknowledging.html (+ https://archive.stsci.edu/dss/copyright.html)
 - **What you CAN do**:
   - ✅ Use for academic research and education
-  - ✅ Post on websites and social media with attribution
-  - ✅ Include in publications with citation
-- **Attribution Required**: "The Digitized Sky Survey was produced at the Space Telescope Science Institute"
+  - ✅ Post on websites, blogs, and social media **with the attribution text below**
+  - ✅ Include in publications with the attribution text below
+  - ⚠️ Commercial use: contact STScI
+- **Attribution Required (verbatim)**: *"The Digitized Sky Surveys were produced at the Space Telescope Science Institute under U.S. Government grant NAG W-2166. The images of these surveys are based on photographic data obtained using the Oschin Schmidt Telescope on Palomar Mountain and the UK Schmidt Telescope."*
 
 ### Summary
-All astronomical data from SkyView and 2MASS is **public domain** - use it however you want! DSS data requires simple attribution.
+- NASA-operated surveys (2MASS, WISE, GALEX, …): **public domain** — use freely, attribution optional.
+- DSS / DSS2: **copyrighted, research/education use with required STScI attribution**; commercial use requires contacting STScI.

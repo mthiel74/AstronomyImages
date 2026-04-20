@@ -125,9 +125,11 @@ Nebula (Barnard 33), centred at RA 85.25\[Degree], \
 Dec \[Minus]2.46\[Degree], 0.5\[Degree] on a side. The bright star at \
 the upper left is \[Sigma] Orionis; the horse-head silhouette is a \
 foreground molecular cloud eating into the emission nebula IC 434 \
-behind it. This image, like every figure in the post, came from NASA \
-SkyView (public-domain DSS data produced by STScI) and was rendered \
-in a single ArrayPlot call."],
+behind it. Rendered by Wolfram in a single ArrayPlot call. \
+Image credit: Digitized Sky Survey 2 (Caltech Palomar plates), \
+produced at STScI under U.S. Government grant NAG W-2166 and \
+distributed through NASA SkyView; reproduced here under STScI's \
+research/education terms \[LongDash] see \[Section]10."],
 
  (* ---- Section 1: What the toolkit does ---- *)
 
@@ -337,7 +339,10 @@ but the extinction is already half its optical value \[LongDash] \
 field stars punch through. At 2MASS K (2.17 \[Mu]m) the nebula is \
 almost transparent. WISE W1 (3.4 \[Mu]m, shown in SunsetColors) \
 reveals warm dust emission from the nebula itself, plus the \
-broadband glow of PAH molecules along the IC 434 ridge."],
+broadband glow of PAH molecules along the IC 434 ridge. Image \
+credits: DSS2 / STScI (research-education use, see \[Section]10); \
+2MASS J, K \[Dash] IPAC/Caltech, UMass (public domain, NASA/NSF); \
+WISE W1 \[Dash] NASA / JPL-Caltech / UCLA (public domain)."],
 
  Cell[TextData[{
    "The dust extinction curve is roughly ",
@@ -398,7 +403,9 @@ Image[rgb, Interleaving -> True, ImageSize -> 520]"], "Input"],
 H (1.65 \[Mu]m) in green, J (1.25 \[Mu]m) in blue. Reddened stars \
 behind the dust column glow orange; the nebular emission of IC 434 \
 shines blue-white. An asinh stretch keeps stars from saturating \
-while preserving low-surface-brightness structure."],
+while preserving low-surface-brightness structure. Image credit: \
+Two Micron All Sky Survey (IPAC/Caltech + UMass, NASA/NSF-funded), \
+public domain."],
 
  (* ---- Section 6: rudimentary analysis ---- *)
 
@@ -472,7 +479,8 @@ tauEst  = -Log[nebMean/bgMean];\n\
 percentile-clipped image (upper left), log10-scaled version revealing \
 faint IC 434 emission (upper right), dark-nebula segmentation at the \
 30th percentile (lower left), and intensity histogram with the \
-threshold marked (lower right)."],
+threshold marked (lower right). Image credit: DSS2 / STScI \
+(research-education use, see \[Section]10)."],
 
  Cell["6.4 Smoothing, log scaling, edge detection", "Subsection"],
 
@@ -514,17 +522,21 @@ Pleiades is dominated by a handful of bright B-type stars that \
 saturate the central pixels on the original plates."}], "Text"],
 
  imgCell["messier_gallery.png",
-  "Figure 5. Six famous Messier targets fetched from NASA SkyView \
-(DSS2 Red; all public-domain imagery produced at STScI). From \
-upper-left, reading rows: M42 \[LongDash] the Orion Nebula, ~1344 ly \
-away, the nearest active stellar nursery. M45 \[LongDash] the \
-Pleiades, a ~110 Myr-old open cluster of B stars in Taurus. \
-M31 \[LongDash] the Andromeda Galaxy, our nearest spiral at 2.5 Mly, \
-on a collision course with the Milky Way. M16 \[LongDash] the Eagle \
-Nebula, home of Hubble's Pillars of Creation. M51 \[LongDash] the \
-Whirlpool Galaxy interacting with NGC 5195 at 23 Mly. \
-M1 \[LongDash] the Crab Nebula, the expanding remnant of a \
-supernova seen by Chinese astronomers in 1054 AD."],
+  "Figure 5. Six famous Messier targets fetched from NASA SkyView, \
+all in DSS2 Red at the same resolution, each rendered with a \
+different colour map. From upper-left, reading rows: M42 \
+\[LongDash] the Orion Nebula, ~1344 ly away, the nearest active \
+stellar nursery. M45 \[LongDash] the Pleiades, a ~110 Myr-old open \
+cluster of B stars in Taurus. M31 \[LongDash] the Andromeda Galaxy, \
+our nearest spiral at 2.5 Mly, on a collision course with the Milky \
+Way. M16 \[LongDash] the Eagle Nebula, home of Hubble's Pillars of \
+Creation. M51 \[LongDash] the Whirlpool Galaxy interacting with NGC \
+5195 at 23 Mly. M1 \[LongDash] the Crab Nebula, the expanding \
+remnant of a supernova seen by Chinese astronomers in 1054 AD. \
+Image credit: Digitized Sky Survey 2 (Caltech Palomar + UK Schmidt \
+plates), produced at STScI under grant NAG W-2166 and distributed \
+through NASA SkyView; reproduced under STScI's research-education \
+terms (see \[Section]10)."],
 
  Cell[TextData[{"For individual high-resolution plates of each \
 target, see ",
@@ -617,7 +629,8 @@ Every control is a built-in Wolfram widget \[LongDash] a catalog \
 picker, RA/Dec input fields, an FOV slider, a survey picker, a \
 pixel-size picker, and a colour-map picker \[LongDash] wired up \
 inside a single DynamicModule. The status line under the buttons \
-reports success, image size, and bytes received."],
+reports success, image size, and bytes received. Image credit: \
+DSS2 / STScI (research-education use, see \[Section]10)."],
 
  Cell[BoxData["\
 catalog = <|\n\
