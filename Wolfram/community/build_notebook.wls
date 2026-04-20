@@ -70,11 +70,15 @@ we pull a 0.5\[Degree] DSS2 Red cutout of the Horsehead Nebula, build \
 a 2MASS J/H/K false-colour composite with an asinh stretch, tour six \
 Messier targets (M1, M16, M31, M42, M45, M51) across multiple colour \
 maps, and expose a catalog-driven downloader that lets you aim the \
-pipeline at any RA/Dec on the sky. Every figure is reproducible from \
-the bundled FITS files; the live cells touch the network only when \
-you press the button."}], "Text"],
+pipeline at any RA/Dec on the sky."}], "Text"],
 
- Cell[TextData[{"The code ships as self-contained ",
+ Cell[TextData[{"The notebook is self-contained: a single \
+initialisation cell at the top downloads the FITS data it needs \
+directly from NASA SkyView on first run, caches it next to the \
+notebook, and every subsequent open is offline. No other files to \
+attach."}], "Text"],
+
+ Cell[TextData[{"The code also ships as ",
    StyleBox[".wl", "Input"],
    " packages in the ",
    StyleBox["Wolfram/", "Input"],
@@ -83,9 +87,9 @@ you press the button."}], "Text"],
      BaseStyle -> "Hyperlink",
      ButtonData -> {URL["https://github.com/mthiel74/AstronomyImages"],
                     None}],
-   " repository (MIT-licensed). A parallel Python implementation \
-lives at the repository root for users who prefer that stack; the \
-rest of this notebook is strictly Wolfram."}], "Text"],
+   " repository (MIT-licensed); a parallel Python implementation \
+lives at the repository root for readers who prefer that stack."}],
+      "Text"],
 
  imgCell["horsehead_DSS2_Red.png",
   "Figure 1. A live 600\[Times]600 DSS2 Red cutout of the Horsehead \
@@ -95,6 +99,103 @@ the upper left is \[Sigma] Orionis; the horse-head silhouette is a \
 foreground molecular cloud eating into the emission nebula IC 434 \
 behind it. Rendered by Wolfram in a single ArrayPlot call. \
 DSS2 / STScI."],
+
+ (* ---- Initialisation (self-contained bootstrapping) ---- *)
+
+ Cell["Initialisation", "Section"],
+
+ Cell[TextData[{"The cell below is the only thing you have to \
+evaluate before the rest of the post runs. It defines the shared \
+helpers (",
+   StyleBox["skyViewURL", "Input"], ", ",
+   StyleBox["skyViewBytes", "Input"], ", ",
+   StyleBox["loadFITSArray", "Input"],
+   ") and, the first time you evaluate it, downloads a bundle of \
+FITS cutouts (~18 MB total) from NASA SkyView into an ",
+   StyleBox["images/", "Input"],
+   " folder next to this notebook. Subsequent opens reuse the \
+cached files, so the notebook then runs fully offline. The cell \
+is flagged as an ",
+   StyleBox["InitializationCell", "Input"],
+   ", so Wolfram will offer to evaluate it automatically when the \
+notebook is first opened."}], "Text"],
+
+ Cell[BoxData["\
+imagesDir = FileNameJoin[{NotebookDirectory[], \"images\"}];\n\
+If[!DirectoryQ[imagesDir], CreateDirectory[imagesDir]];\n\
+\n\
+skyViewURL[ra_, dec_, survey_, fov_, pixels_] :=\n\
+  \"https://skyview.gsfc.nasa.gov/cgi-bin/images?\" <>\n\
+    URLQueryEncode[<|\n\
+      \"Position\" -> ToString[ra] <> \",\" <> ToString[dec],\n\
+      \"Survey\"   -> survey,\n\
+      \"Pixels\"   -> ToString[pixels] <> \",\" <> ToString[pixels],\n\
+      \"Size\"     -> ToString[fov],\n\
+      \"Return\"   -> \"FITS\"\n\
+    |>];\n\
+\n\
+skyViewBytes[ra_, dec_, survey_, fov_: 0.5, pixels_: 600] :=\n\
+  Module[{resp = URLRead[HTTPRequest[skyViewURL[ra, dec, survey, fov, pixels]]]},\n\
+    If[resp === $Failed || resp[\"StatusCode\"] =!= 200,\n\
+      $Failed, resp[\"BodyByteArray\"]]];\n\
+\n\
+loadFITSArray[file_] :=\n\
+  With[{raw = Import[file, {\"FITS\", \"Data\"}]},\n\
+    Which[\n\
+      AssociationQ[raw],                First[Values[raw]],\n\
+      ListQ[raw] && Depth[raw] >= 4,    First[raw],\n\
+      True,                             raw]];\n\
+\n\
+cachedFITS[fileName_, ra_, dec_, survey_, fov_: 0.5, pixels_: 600] :=\n\
+  Module[{path = FileNameJoin[{imagesDir, fileName}], bytes},\n\
+    If[FileExistsQ[path] && FileByteCount[path] > 8000, Return[path]];\n\
+    Print[\"downloading \", fileName, \" (\", survey, \", \", fov, \"\[Degree])\[Ellipsis]\"];\n\
+    bytes = skyViewBytes[ra, dec, survey, fov, pixels];\n\
+    If[!ByteArrayQ[bytes] || Length[bytes] < 8000,\n\
+      Print[\"  ! failed\"]; Return[$Failed]];\n\
+    BinaryWrite[path, bytes]; Close[path];\n\
+    path];\n\
+\n\
+(* Horsehead: five bands, one position *)\n\
+cachedFITS[\"horsehead_DSS2_Red.fits\", 85.2479, -2.4583, \"DSS2 Red\", 0.5, 600];\n\
+cachedFITS[\"horsehead_2MASS_J.fits\",  85.2479, -2.4583, \"2MASS-J\",  0.5, 600];\n\
+cachedFITS[\"horsehead_2MASS_H.fits\",  85.2479, -2.4583, \"2MASS-H\",  0.5, 600];\n\
+cachedFITS[\"horsehead_2MASS_K.fits\",  85.2479, -2.4583, \"2MASS-K\",  0.5, 600];\n\
+cachedFITS[\"horsehead_WISE_3p4.fits\", 85.2479, -2.4583, \"WISE 3.4\", 0.5, 600];\n\
+\n\
+(* Six Messier targets in DSS2 Red *)\n\
+cachedFITS[\"M42_Orion_Nebula_DSS2_Red.fits\",  83.8213, -5.3903, \"DSS2 Red\", 1.0,  600];\n\
+cachedFITS[\"M45_Pleiades_DSS2_Red.fits\",     56.870,   24.105, \"DSS2 Red\", 2.5,  600];\n\
+cachedFITS[\"M31_Andromeda_DSS2_Red.fits\",    10.685,   41.269, \"DSS2 Red\", 3.0,  600];\n\
+cachedFITS[\"M16_Eagle_Nebula_DSS2_Red.fits\", 274.700, -13.807, \"DSS2 Red\", 0.5,  600];\n\
+cachedFITS[\"M51_Whirlpool_DSS2_Red.fits\",    202.469,  47.196, \"DSS2 Red\", 0.2,  600];\n\
+cachedFITS[\"M1_Crab_Nebula_DSS2_Red.fits\",   83.633,   22.014, \"DSS2 Red\", 0.15, 600];\n\
+\n\
+(* Simulated Horsehead (pure Wolfram, no network) *)\n\
+With[{simPath = FileNameJoin[{imagesDir, \"horsehead_simulated.mx\"}]},\n\
+  If[!FileExistsQ[simPath],\n\
+    Print[\"generating simulated Horsehead\[Ellipsis]\"];\n\
+    SeedRandom[42];\n\
+    Module[{size = 600, xs, X, Y, bg, mask, tau, img, sim},\n\
+      xs = Subdivide[-1., 1., size - 1];\n\
+      X = Table[x, {y, xs}, {x, xs}];\n\
+      Y = Table[y, {y, xs}, {x, xs}];\n\
+      bg = 100. + 150. Exp[-(X^2 + Y^2)/0.5];\n\
+      Do[bg = bg + RandomReal[{10, 30}]\n\
+                  Sin[RandomReal[{5, 15}] (X Cos[RandomReal[{0, Pi}]]\n\
+                                        + Y Sin[RandomReal[{0, Pi}]])], {5}];\n\
+      mask = Exp[-(((X - 0.10)/0.30)^2 + ((Y + 0.20)/0.40)^2) 8.]\n\
+           + 0.7 Exp[-(((X - 0.15)/0.15)^2 + ((Y - 0.15)/0.35)^2) 6.];\n\
+      tau = 3.0 mask;\n\
+      img = bg Exp[-tau];\n\
+      img = Map[RandomVariate[PoissonDistribution[Max[#, 0.]]] &, img, {2}];\n\
+      sim = Clip[img + RandomVariate[NormalDistribution[0.,\n\
+              0.02 Mean[Flatten[img]]], {size, size}], {0., Infinity}];\n\
+      Export[simPath, sim]]]];\n\
+\n\
+Print[\"Initialisation complete. Bundled files:\"];\n\
+FileNames[\"*.fits\" | \"*.mx\", imagesDir]"], "Input",
+  InitializationCell -> True],
 
  (* ---- Section 1: Downloading ---- *)
 
