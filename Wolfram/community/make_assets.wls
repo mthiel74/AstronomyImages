@@ -228,8 +228,8 @@ If[Length[galleryPanels] >= 4,
     Labeled[
       Grid[Partition[galleryPanels, 3, 3, 1, ""],
            Spacings -> {1.2, 1.5}],
-      Style["A six-target tour through NASA SkyView (all DSS2 Red, \
-public-domain imagery)", Bold, 14], Top],
+      Style["A six-target tour through NASA SkyView \
+(DSS2 Red; credit: STScI, see notebook \[Section]10)", Bold, 14], Top],
     ImageResolution -> 140];
   Print["  wrote messier_gallery.png (",
         Length[galleryPanels], " targets)"]];

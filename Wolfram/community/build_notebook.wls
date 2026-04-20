@@ -159,6 +159,7 @@ percentile clipping, optical-depth estimates, edge detection.\n\n",
 
  Cell[BoxData[ToBoxes[cheatGrid]],
   "Output", ShowCellLabel -> False,
+  TextAlignment -> Center,
   CellMargins -> {{0, 0}, {8, 14}}],
 
  (* ---- Section 2: cheat sheet ---- *)
@@ -790,6 +791,7 @@ with each."}], "Text"],
 
  Cell[BoxData[ToBoxes[licenceGrid]],
   "Output", ShowCellLabel -> False,
+  TextAlignment -> Center,
   CellMargins -> {{0, 0}, {8, 14}}],
 
  Cell[TextData[{StyleBox["Required attribution for DSS imagery",
