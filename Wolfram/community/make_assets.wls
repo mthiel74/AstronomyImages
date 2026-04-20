@@ -1,11 +1,18 @@
 #!/usr/bin/env wolframscript
-(* Regenerate the community-post assets (FITS, PNGs, stats JSON) using
-   only Wolfram Language tooling. Mirrors what images/make_assets.py did
-   on the Python side, but routed through HorseheadSkyView.wl so the
-   notebook's code paths are exercised end-to-end.
+(* Regenerate the community-post assets using only Wolfram Language.
+   This version builds:
+
+     1. Horsehead Nebula in DSS2 Red + 2MASS-J + simulated        (core)
+     2. Multi-wavelength Horsehead panel: DSS2 Red, 2MASS-J,
+        2MASS-K, WISE 3.4 \[LongDash] one object, four bands
+     3. 2MASS J/H/K Horsehead RGB composite
+     4. Messier gallery: M42, M45, M31, M16, M51, M1 in DSS2 Red
+     5. Analysis panel + stats JSON
+
+   Downloads are idempotent: if the FITS already exists we skip the
+   network round-trip.
 
    Usage:   wolframscript -file Wolfram/community/make_assets.wls
-   Output:  Wolfram/community/images/{*.fits, *.png, analysis_stats.json}
 *)
 
 hereDir = DirectoryName[If[$ScriptCommandLine =!= {}, $InputFileName,
@@ -14,81 +21,236 @@ pkgDir  = FileNameJoin[{hereDir, ".."}];
 imgDir  = FileNameJoin[{hereDir, "images"}];
 If[!DirectoryQ[imgDir], CreateDirectory[imgDir]];
 
-(* Load the Wolfram port but suppress its script-mode entry point by
-   setting $Notebooks temporarily. *)
-$Notebooks = True;
+$Notebooks = True;   (* suppress script-mode main in the package *)
 Get[FileNameJoin[{pkgDir, "HorseheadSkyView.wl"}]];
 
-(* Robust FITS loader: cope with Association / nested-list returns. *)
 loadFITSData[file_] := With[{raw = Quiet @ Import[file, {"FITS", "Data"}]},
   Which[
     AssociationQ[raw],                           First[Values[raw]],
     ListQ[raw] && Depth[raw] >= 4,               First[raw],
-    True,                                        raw
-  ]];
+    True,                                        raw]];
 
-(* Render a PNG preview from a numeric image matrix. *)
-savePreview[data_, path_, title_, cmap_: "GrayTones"] := Module[
-  {flat, lo, hi},
+safeName[s_] := StringReplace[s, {" " -> "_", "-" -> "_", "." -> "p",
+                                   "(" -> "", ")" -> ""}];
+
+(* ---------- core SkyView fetcher with filesystem caching ---------- *)
+
+fetch[ra_, dec_, survey_, fov_, pixels_, tag_String] := Module[
+  {safe, fitsPath, bytes, data},
+  safe     = safeName[tag] <> "_" <> safeName[survey];
+  fitsPath = FileNameJoin[{imgDir, safe <> ".fits"}];
+  If[FileExistsQ[fitsPath] && FileByteCount[fitsPath] > 8000,
+    Print["  cache hit: ", FileNameTake[fitsPath]];
+    data = loadFITSData[fitsPath];
+    Return[{fitsPath, data}]];
+  Print["  downloading ", tag, " / ", survey, " (",
+        fov, "\[Degree], ", pixels, "px)"];
+  bytes = Quiet @ Catch[
+    HorseheadSkyView`querySkyView[ra, dec,
+      "Survey" -> survey, "Pixels" -> pixels, "FOV" -> fov,
+      "Timeout" -> 120],
+    HorseheadSkyView`Private`querySkyView];
+  If[!ByteArrayQ[bytes] || Length[bytes] < 8000,
+    Print["  ! failed: ", tag, " / ", survey]; Return[{$Failed, $Failed}]];
+  BinaryWrite[fitsPath, bytes]; Close[fitsPath];
+  data = loadFITSData[fitsPath];
+  If[!MatrixQ[data, NumericQ],
+    Print["  ! could not decode FITS: ", fitsPath]; Return[{fitsPath, $Failed}]];
+  {fitsPath, data}
+];
+
+(* ---------- rendering helpers ---------- *)
+
+percClip[data_, lo_: 0.01, hi_: 0.995] := Module[{flat},
   flat = DeleteCases[Flatten[data], _?(Not@*NumericQ)];
-  {lo, hi} = Quantile[flat, {0.01, 0.995}];
+  Quantile[flat, {lo, hi}]];
+
+savePreview[data_, path_, title_, cmap_: "GrayTones"] := Module[
+  {lohi},
+  lohi = percClip[data];
   Export[path,
     ArrayPlot[Reverse[data],
       ColorFunction -> ColorData[cmap],
-      PlotRange -> {lo, hi},
+      PlotRange -> lohi,
       Frame -> True,
       FrameLabel -> {"X (pixels)", "Y (pixels)"},
       PlotLabel -> Style[title, Bold, 12],
       ImageSize -> 640]];
-  Print["  wrote ", path];
-];
+  Print["  wrote ", FileNameTake[path]]];
 
-(* ---------------- 1. Real SkyView cutouts ---------------- *)
+(* Normalise a 2-D array to [0,1] using asinh stretch on percentile-
+   clipped values \[LongDash] the textbook trick for turning raw
+   telescope counts into visually balanced RGB channels. *)
+asinhStretch[data_, quantileLo_: 0.5, quantileHi_: 0.998,
+             softening_: 0.02] := Module[
+  {flat, lo, hi, norm, stretched, sMin, sMax},
+  flat = DeleteCases[Flatten[data], _?(Not@*NumericQ)];
+  {lo, hi} = Quantile[flat, {quantileLo, quantileHi}];
+  norm = Clip[(data - lo)/(hi - lo + 10.^-12), {0, 1}];
+  stretched = ArcSinh[norm / softening];
+  {sMin, sMax} = MinMax[Flatten[stretched]];
+  Clip[(stretched - sMin)/(sMax - sMin + 10.^-12), {0, 1}]];
+
+(* =================================================================
+   1. Horsehead Nebula: core panels
+   ================================================================= *)
 
 raHH  = 85.2479;
 decHH = -2.4583;
 
-fetchSurvey[survey_] := Module[
-  {bytes, safe, fitsPath, data},
-  safe = StringReplace[survey, {" " -> "_", "-" -> "_"}];
-  fitsPath = FileNameJoin[{imgDir, "horsehead_" <> safe <> ".fits"}];
-  Print["- trying SkyView survey ", survey];
-  bytes = Quiet @ Catch[
-    HorseheadSkyView`querySkyView[raHH, decHH,
-      "Survey" -> survey, "Pixels" -> 600, "FOV" -> 0.5,
-      "Timeout" -> 90],
-    HorseheadSkyView`Private`querySkyView];
-  If[!ByteArrayQ[bytes] || Length[bytes] < 8000,
-    Print["  ! download failed for ", survey]; Return[$Failed]];
-  BinaryWrite[fitsPath, bytes]; Close[fitsPath];
-  data = loadFITSData[fitsPath];
-  If[!MatrixQ[data, NumericQ],
-    Print["  ! could not decode FITS: ", fitsPath]; Return[$Failed]];
-  savePreview[data,
-    FileNameJoin[{imgDir, "horsehead_" <> safe <> ".png"}],
-    "Horsehead Nebula - " <> survey];
-  data
-];
+Print["---- Core Horsehead panels"];
+{ , dataDSSRed}  = fetch[raHH, decHH, "DSS2 Red",  0.5, 600, "horsehead"];
+{ , dataMASSJ}   = fetch[raHH, decHH, "2MASS-J",   0.5, 600, "horsehead"];
 
-realData = None;
+If[MatrixQ[dataDSSRed, NumericQ],
+  savePreview[dataDSSRed,
+    FileNameJoin[{imgDir, "horsehead_DSS2_Red.png"}],
+    "Horsehead Nebula - DSS2 Red"]];
+If[MatrixQ[dataMASSJ, NumericQ],
+  savePreview[dataMASSJ,
+    FileNameJoin[{imgDir, "horsehead_2MASS_J.png"}],
+    "Horsehead Nebula - 2MASS J (1.25\[Mu]m)"]];
+
+(* =================================================================
+   2. Multi-wavelength Horsehead (DSS Red, 2MASS J, K, WISE 3.4)
+   ================================================================= *)
+
+Print["---- Multi-wavelength Horsehead"];
+{ , dataMASSK}  = fetch[raHH, decHH, "2MASS-K",  0.5, 600, "horsehead"];
+{ , dataWISE34} = fetch[raHH, decHH, "WISE 3.4", 0.5, 600, "horsehead"];
+
+multiWavePanel = Module[{panels, mk},
+  mk[data_, label_, cmap_] :=
+    If[MatrixQ[data, NumericQ],
+      With[{lohi = percClip[data]},
+        Labeled[
+          ArrayPlot[Reverse[data],
+            ColorFunction -> ColorData[cmap],
+            PlotRange -> lohi, Frame -> False, ImageSize -> 380],
+          Style[label, Bold, 13]]],
+      Framed[Style["[missing]", Red], ImageSize -> {380, 380}]];
+  panels = {
+    mk[dataDSSRed,  "DSS2 Red (656 nm)",          "GrayTones"],
+    mk[dataMASSJ,   "2MASS J (1.25 \[Mu]m)",      "GrayTones"],
+    mk[dataMASSK,   "2MASS K (2.17 \[Mu]m)",      "SunsetColors"],
+    mk[dataWISE34,  "WISE W1 (3.4 \[Mu]m)",       "SunsetColors"]};
+  Labeled[
+    Grid[Partition[panels, 2], Spacings -> 1],
+    Style["Horsehead Nebula: one object, four wavelengths",
+          Bold, 14], Top]];
+
+Export[FileNameJoin[{imgDir, "horsehead_multiwavelength.png"}],
+  multiWavePanel, ImageResolution -> 140];
+Print["  wrote horsehead_multiwavelength.png"];
+
+(* =================================================================
+   3. 2MASS J/H/K RGB composite (using asinh stretch)
+   ================================================================= *)
+
+Print["---- 2MASS J/H/K RGB composite"];
+{ , dataMASSH} = fetch[raHH, decHH, "2MASS-H", 0.5, 600, "horsehead"];
+
+If[AllTrue[{dataMASSJ, dataMASSH, dataMASSK}, MatrixQ[#, NumericQ] &],
+  Module[{r, g, b, rgb},
+    r = asinhStretch[dataMASSK];    (* K \[Rule] red   *)
+    g = asinhStretch[dataMASSH];    (* H \[Rule] green *)
+    b = asinhStretch[dataMASSJ];    (* J \[Rule] blue  *)
+    rgb = Transpose[Map[Reverse, {r, g, b}], {3, 1, 2}];
+    Export[FileNameJoin[{imgDir, "horsehead_RGB_JHK.png"}],
+      Rasterize[
+        Labeled[
+          Image[rgb, Interleaving -> True, ImageSize -> 640],
+          Style["Horsehead Nebula: 2MASS J/H/K false-colour composite",
+                Bold, 13], Top],
+        ImageSize -> 720]];
+    Print["  wrote horsehead_RGB_JHK.png"]],
+  Print["  ! RGB skipped, missing 2MASS band"]];
+
+(* =================================================================
+   4. Messier gallery
+   ================================================================= *)
+
+Print["---- Messier gallery"];
+
+gallery = <|
+  "M42 (Orion Nebula)"    -> <|"ra" -> 83.8213, "dec" -> -5.3903,
+                              "fov" -> 1.0,  "cmap" -> "Rainbow",
+                              "caption" -> "Stellar nursery, 1344 ly away"|>,
+  "M45 (Pleiades)"        -> <|"ra" -> 56.870,  "dec" -> 24.105,
+                              "fov" -> 2.5,  "cmap" -> "DeepSeaColors",
+                              "caption" -> "Open cluster, ~110 Myr old"|>,
+  "M31 (Andromeda)"       -> <|"ra" -> 10.685,  "dec" -> 41.269,
+                              "fov" -> 3.0,  "cmap" -> "SunsetColors",
+                              "caption" -> "Nearest spiral galaxy, 2.5 Mly"|>,
+  "M16 (Eagle Nebula)"    -> <|"ra" -> 274.700, "dec" -> -13.807,
+                              "fov" -> 0.5,  "cmap" -> "TemperatureMap",
+                              "caption" -> "Pillars of Creation, HST target"|>,
+  "M51 (Whirlpool)"       -> <|"ra" -> 202.469, "dec" -> 47.196,
+                              "fov" -> 0.2,  "cmap" -> "AuroraColors",
+                              "caption" -> "Grand-design spiral, 23 Mly"|>,
+  "M1 (Crab Nebula)"      -> <|"ra" -> 83.633,  "dec" -> 22.014,
+                              "fov" -> 0.15, "cmap" -> "SolarColors",
+                              "caption" -> "Supernova remnant of 1054 AD"|>
+|>;
+
+galleryPanels = {};
+
 Do[
-  With[{d = fetchSurvey[s]},
-    If[d =!= $Failed && realData === None, realData = d]],
-  {s, {"DSS2 Red", "2MASS-J"}}];
+  Module[{name = k, meta = gallery[k], d, fpath, lohi, panel},
+    Print["- ", name];
+    {fpath, d} = fetch[meta["ra"], meta["dec"], "DSS2 Red",
+                       meta["fov"], 600, name];
+    If[MatrixQ[d, NumericQ],
+      lohi = percClip[d];
+      panel = Labeled[
+        ArrayPlot[Reverse[d],
+          ColorFunction -> ColorData[meta["cmap"]],
+          PlotRange -> lohi,
+          Frame -> False, ImageSize -> 360],
+        Column[{
+          Style[name, Bold, 12],
+          Style[meta["caption"], Italic, FontSize -> 10,
+                FontColor -> Gray]},
+          Alignment -> Center]];
+      AppendTo[galleryPanels, panel];
+      (* Also write an individual PNG for the one-off gallery image *)
+      Export[FileNameJoin[{imgDir,
+          "gallery_" <> safeName[name] <> ".png"}],
+        ArrayPlot[Reverse[d],
+          ColorFunction -> ColorData[meta["cmap"]],
+          PlotRange -> lohi,
+          Frame -> False, ImageSize -> 640]];
+      Print["  wrote individual gallery_", safeName[name], ".png"]]],
+  {k, Keys[gallery]}];
 
-(* ---------------- 2. Simulated Horsehead ---------------- *)
+If[Length[galleryPanels] >= 4,
+  Export[FileNameJoin[{imgDir, "messier_gallery.png"}],
+    Labeled[
+      Grid[Partition[galleryPanels, 3, 3, 1, ""],
+           Spacings -> {1.2, 1.5}],
+      Style["A six-target tour through NASA SkyView (all DSS2 Red, \
+public-domain imagery)", Bold, 14], Top],
+    ImageResolution -> 140];
+  Print["  wrote messier_gallery.png (",
+        Length[galleryPanels], " targets)"]];
+
+(* =================================================================
+   5. Simulated Horsehead, analysis panel, stats JSON
+   ================================================================= *)
+
+Print["---- Simulated Horsehead + analysis panel"];
 
 SeedRandom[42];
 size = 600;
 xs   = Subdivide[-1., 1., size - 1];
-ys   = xs;
 sim = Module[{X, Y, bg, mask, tau, img},
-  X = Table[x, {y, ys}, {x, xs}];
-  Y = Table[y, {y, ys}, {x, xs}];
+  X = Table[x, {y, xs}, {x, xs}];
+  Y = Table[y, {y, xs}, {x, xs}];
   bg = 100. + 150. Exp[-(X^2 + Y^2)/0.5];
   Do[bg = bg + RandomReal[{10, 30}]
               Sin[RandomReal[{5, 15}]
-                  (X Cos[RandomReal[{0, Pi}]] + Y Sin[RandomReal[{0, Pi}]])],
+                  (X Cos[RandomReal[{0, Pi}]]
+                 + Y Sin[RandomReal[{0, Pi}]])],
      {5}];
   mask = Exp[-(((X - 0.10)/0.30)^2 + ((Y + 0.20)/0.40)^2) 8.]
        + 0.7 Exp[-(((X - 0.15)/0.15)^2 + ((Y - 0.15)/0.35)^2) 6.];
@@ -99,19 +261,16 @@ sim = Module[{X, Y, bg, mask, tau, img},
   img + RandomVariate[NormalDistribution[0., 0.02 Mean[Flatten[img]]],
                       {size, size}]];
 sim = Clip[sim, {0., Infinity}];
-
 Export[FileNameJoin[{imgDir, "horsehead_simulated.mx"}], sim];
 savePreview[sim,
   FileNameJoin[{imgDir, "horsehead_simulated.png"}],
   "Simulated Horsehead Nebula"];
 
-(* ---------------- 3. Analysis panel ---------------- *)
-
-analysisSrc = If[realData =!= None, realData, sim];
+analysisSrc = If[MatrixQ[dataDSSRed, NumericQ], dataDSSRed, sim];
 flat = DeleteCases[Flatten[analysisSrc], _?(Not@*NumericQ)];
-{lo, hi} = Quantile[flat, {0.01, 0.995}];
-threshold = Quantile[flat, 0.30];
-darkMask  = UnitStep[threshold - analysisSrc];
+{lo, hi}    = Quantile[flat, {0.01, 0.995}];
+threshold   = Quantile[flat, 0.30];
+darkMask    = UnitStep[threshold - analysisSrc];
 
 panel = Grid[{
   {Labeled[ArrayPlot[Reverse[analysisSrc],
@@ -137,19 +296,19 @@ panel = Grid[{
       Frame -> True,
       FrameLabel -> {"Pixel intensity (ADU)", "Count"},
       ImageSize -> 360],
-    Row[{"Threshold = ", NumberForm[N@threshold, {5, 1}]}]]}}, Spacings -> 1];
+    Row[{"Threshold = ", NumberForm[N@threshold, {5, 1}]}]]}},
+  Spacings -> 1];
 
-Export[FileNameJoin[{imgDir, "horsehead_analysis_panel.png"}], panel,
-       ImageResolution -> 140];
+Export[FileNameJoin[{imgDir, "horsehead_analysis_panel.png"}],
+  panel, ImageResolution -> 140];
 Print["  wrote horsehead_analysis_panel.png"];
-
-(* ---------------- 4. Stats JSON ---------------- *)
 
 bgMean  = Mean[Pick[flat, Flatten[darkMask], 0]];
 nebMean = Mean[Pick[flat, Flatten[darkMask], 1]];
 tauEst  = -Log[(nebMean + 10.^-6)/(bgMean + 10.^-6)];
 stats = <|
-  "source"                    -> If[realData =!= None, "real", "simulated"],
+  "source"                    -> If[MatrixQ[dataDSSRed, NumericQ],
+                                    "real", "simulated"],
   "shape"                     -> Dimensions[analysisSrc],
   "min"                       -> N@Min[flat],
   "max"                       -> N@Max[flat],
@@ -164,4 +323,4 @@ stats = <|
 Export[FileNameJoin[{imgDir, "analysis_stats.json"}], stats, "JSON"];
 Print["  wrote analysis_stats.json"];
 
-Print["done; real data: ", realData =!= None];
+Print["\nAll done."];
